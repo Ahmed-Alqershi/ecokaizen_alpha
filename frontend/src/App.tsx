@@ -1,16 +1,24 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import SandboxPage from './pages/SandboxPage';
-import SignupWizard from './pages/SignupWizard';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import HomePage from './screens/HomePage';
+import ModelBuilderPage from './screens/ModelBuilderPage';
+import './styles/index.css';
 
-const App: React.FC = () => {
+const App = () => {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/sandbox" element={<SandboxPage />} />
-      <Route path="/signup" element={<SignupWizard />} />
-    </Routes>
+    <Router>
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/model-builder" element={<ModelBuilderPage />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </Router>
   );
 };
 
