@@ -34,6 +34,9 @@ const TableTestPage = () => {
       <h1 className="text-2xl font-bold mb-4">AG Grid Test</h1>
       <div className="ag-theme-alpine w-full h-[60vh] border border-midgray">
         <AgGridReact
+          /* Ensure grid re-renders correctly by using a key based on the
+             number of entries */
+          key={`test-grid-${entries.length}`}
           className="w-full h-full"
           columnDefs={columnDefs}
           rowData={rowData}
