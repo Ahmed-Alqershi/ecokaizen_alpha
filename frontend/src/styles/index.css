@@ -1,0 +1,68 @@
+/* AG-Grid styles - global import */
+@import 'ag-grid-community/styles/ag-grid.css';
+@import 'ag-grid-community/styles/ag-theme-alpine.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer base {
+  html {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+  
+  body {
+    @apply bg-neutral text-darkgray;
+  }
+
+  h1 {
+    @apply text-3xl font-bold mb-4;
+  }
+
+  h2 {
+    @apply text-2xl font-bold mb-3;
+  }
+
+  h3 {
+    @apply text-xl font-semibold mb-2;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary/90;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-white hover:bg-secondary/90;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-md p-6;
+  }
+
+  .input {
+    @apply border border-midgray rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+  }
+
+  /* Custom AG-Grid styles for SAM table */
+  .ag-theme-alpine {
+    --ag-header-height: 40px;
+    --ag-row-height: 40px;
+    --ag-font-size: 14px;
+    --ag-header-foreground-color: #374151;
+    --ag-border-color: #d1d5db;
+    --ag-cell-horizontal-border: solid #e5e7eb;
+    --ag-header-column-resize-handle-color: #9333ea;
+    --ag-selected-row-background-color: rgba(37, 99, 235, 0.1);
+
+    /* Force display */
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
