@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './screens/HomePage';
 import ModelBuilderPage from './screens/ModelBuilderPage';
+import TableTestPage from './screens/TableTestPage';
 import './styles/index.css';
 
 const App = () => {
@@ -14,6 +15,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/model-builder" element={<ModelBuilderPage />} />
+            <Route path="/table-test" element={<TableTestPage />} />
           </Routes>
         </main>
         <Footer />
