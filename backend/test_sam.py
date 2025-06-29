@@ -7,7 +7,7 @@ import requests
 
 def test_generate_sam():
     """Test the generate-random-sam endpoint"""
-    url = "http://localhost:5000/generate-random-sam"
+    url = "http://localhost:5001/generate-random-sam"
     
     # Test with standard dimensions
     payload = {
@@ -73,7 +73,7 @@ def test_generate_sam():
 
 def test_solve_model(sam=None):
     """Test the solve-model endpoint"""
-    url = "http://localhost:5000/solve-model"
+    url = "http://localhost:5001/solve-model"
     
     if sam:
         print("\nTesting model solving with custom SAM...")
@@ -134,7 +134,7 @@ def test_solve_model(sam=None):
 
 def test_compare_scenarios(sam=None):
     """Test the compare-scenarios endpoint"""
-    url = "http://localhost:5000/compare-scenarios"
+    url = "http://localhost:5001/compare-scenarios"
     
     if sam:
         print("\nTesting scenario comparison with custom SAM...")
