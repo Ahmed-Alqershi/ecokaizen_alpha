@@ -187,7 +187,9 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
 
   return (
     <div className="w-full">
-      <div className="ag-theme-alpine w-full" style={{ height: '60vh', border: '1px solid #ddd' }}>
+      <div
+        className="ag-theme-alpine w-full h-[60vh] border border-midgray"
+      >
         {!sam || !sam.entries || sam.entries.length === 0 ? (
           <div className="flex flex-col h-full">
             <div className="flex-grow flex items-center justify-center bg-neutral/50 border border-midgray/30 rounded-md">
@@ -204,6 +206,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
              4. Added key based on entries length to force re-render
           */
           <AgGridReact
+            className="w-full h-full"
             key={`sam-grid-${sam.entries.length}`}
             columnDefs={columnDefs}
             rowData={rowData}
