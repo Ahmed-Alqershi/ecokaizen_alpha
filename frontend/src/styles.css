@@ -1,0 +1,75 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+nav {
+  background-color: #003366;
+  color: white;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav ul {
+  list-style: none;
+  display: flex;
+  gap: 15px;
+  margin: 0;
+  padding: 0;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+}
+
+.container {
+  padding: 20px;
+}
+
+.hero {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.hero button {
+  margin: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+}
+
+.sandbox {
+  margin-top: 20px;
+}
+
+.tooltip {
+  border-bottom: 1px dotted #000;
+  cursor: help;
+}
+
+.wizard {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.progress {
+  height: 5px;
+  background-color: #ccc;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.progress-bar {
+  height: 5px;
+  background-color: #003366;
+  width: 0%;
+  transition: width 0.3s;
+}
+
+.wizard-nav {
+  text-align: right;
+  margin-top: 10px;
+}
