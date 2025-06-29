@@ -32,6 +32,7 @@ const ModelBuilderPage = () => {
   // SAM data
   const [samData, setSamData] = useState<SAM>(generateDefaultSam());
   const [isCustomSam, setIsCustomSam] = useState<boolean>(false);
+  const [samConfigured, setSamConfigured] = useState<boolean>(false);
   
   // Parameters
   const [modelParameters, setModelParameters] = useState<ModelParameters>({
@@ -78,6 +79,7 @@ const ModelBuilderPage = () => {
       setRunningScenario(false);
       setScenarioParameters(null);
       setIsCustomSam(false);
+      setSamConfigured(false);
       setError(null);
       setDetailedError(null);
     }
@@ -186,6 +188,7 @@ const ModelBuilderPage = () => {
   const handleCustomizationChoice = (isCustom: boolean) => {
     console.log('Customization choice made:', isCustom);
     setUseCustomModel(isCustom);
+    setSamConfigured(false);
 
     if (!isCustom) {
       // If running as-is, skip to solving
@@ -233,6 +236,21 @@ const ModelBuilderPage = () => {
     const newNames = [...householdNames];
     newNames[index] = name;
     setHouseholdNames(newNames);
+  };
+
+  const handleConfigureSam = () => {
+    const emptySam = generateEmptySam(
+      sectorCount,
+      factorCount,
+      householdCount,
+      useCustomNames ? sectorNames : undefined,
+      useCustomNames ? factorNames : undefined,
+      useCustomNames ? householdNames : undefined
+    );
+
+    setSamData(emptySam);
+    setIsCustomSam(true);
+    setSamConfigured(true);
   };
 
   // This function was previously used to generate a random SAM from the backend
@@ -388,6 +406,7 @@ const ModelBuilderPage = () => {
     setFactorNames(['FACTOR1', 'FACTOR2']);
     setHouseholdNames(['HH1']);
     setUseCustomNames(false);
+    setSamConfigured(false);
   };
   
   // Toggle showing detailed error
@@ -665,37 +684,47 @@ const ModelBuilderPage = () => {
               </div>
             )}
 
-            <div className="text-sm text-darkgray/70 mt-4">
-              <p className="mb-2">The SAM structure has been created with your specified dimensions.</p>
-              <p>Fill in the SAM table below with your data values. All cells are editable.</p>
-            </div>
+            {!samConfigured && (
+              <div className="mt-6">
+                <button
+                  onClick={handleConfigureSam}
+                  className="btn btn-primary"
+                >
+                  Configure SAM
+                </button>
+              </div>
+            )}
           </div>
-          
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h3 className="text-xl font-medium mb-4">Social Accounting Matrix (SAM)</h3>
-            <p className="mb-4 text-darkgray/70">
-              You can upload your own SAM data or edit the matrix below.
-            </p>
-            
-            <div className="mb-6">
-              <h4 className="text-lg font-medium mb-2">Upload SAM</h4>
-              <FileUploader onSamLoaded={handleSamUpload} />
-            </div>
-            
-            <div className="mb-6">
-              <h4 className="text-lg font-medium mb-2">Edit SAM</h4>
-              <SAMTable sam={samData} onChange={setSamData} />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h3 className="text-xl font-medium mb-4">Model Parameters</h3>
-            <ParameterInputs
-              initialParams={modelParameters}
-              sam={samData}
-              onChange={handleParameterChange}
-            />
-          </div>
+
+          {samConfigured && (
+            <>
+              <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <h3 className="text-xl font-medium mb-4">Social Accounting Matrix (SAM)</h3>
+                <p className="mb-4 text-darkgray/70">
+                  You can upload your own SAM data or use the SAM Editor below.
+                </p>
+
+                <div className="mb-6">
+                  <h4 className="text-lg font-medium mb-2">Upload SAM</h4>
+                  <FileUploader onSamLoaded={handleSamUpload} />
+                </div>
+
+                <div className="mb-6">
+                  <h4 className="text-lg font-medium mb-2">SAM Editor</h4>
+                  <SAMTable sam={samData} onChange={setSamData} />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <h3 className="text-xl font-medium mb-4">Model Parameters</h3>
+                <ParameterInputs
+                  initialParams={modelParameters}
+                  sam={samData}
+                  onChange={handleParameterChange}
+                />
+              </div>
+            </>
+          )}
           
           <div className="mt-6 flex justify-between">
             <button
@@ -707,7 +736,7 @@ const ModelBuilderPage = () => {
             <button
               onClick={handleSolveModel}
               className="btn btn-primary"
-              disabled={isLoading}
+              disabled={isLoading || !samConfigured}
             >
               {isLoading ? 'Solving...' : 'Solve Model'}
             </button>

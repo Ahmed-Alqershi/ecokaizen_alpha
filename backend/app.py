@@ -7,6 +7,12 @@ import traceback
 from models.splcge import add_input_solve
 from models.dynamic_splcge import dynamic_solve, extract_results
 from sam_utils.generator import generate_random_sam as gen_sam
+from utils.validators import (
+    RequestValidationError,
+    adjust_parameter_list,
+    parse_json_request,
+    validate_sam_structure,
+)
 
 app = Flask(__name__)
 # Enable CORS for all routes and all origins
@@ -15,13 +21,10 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 @app.route('/solve-model', methods=['POST'])
 def solve_model():
     try:
-        # Validate request data
-        if not request.is_json:
-            return jsonify({'error': 'Request must be JSON'}), 400
-
-        data = request.json
-        if not data:
-            return jsonify({'error': 'Empty request body'}), 400
+        try:
+            data = parse_json_request(request)
+        except RequestValidationError as exc:
+            return jsonify({'error': exc.message}), exc.status_code
 
         template_id = data.get('templateId', 'simple-cge')
         if not template_id:
@@ -39,89 +42,40 @@ def solve_model():
 
         # For MVP, we only support the simple CGE model
         if template_id == 'simple-cge':
-            # Extract and validate alpha and b parameters
             try:
-                alpha_input = params.get('alpha', [0.3, 0.7])
-                b_input = params.get('b', [1.0, 1.0])
+                alpha_input, b_input = extract_parameters(params, [0.3, 0.7], [1.0, 1.0])
+            except RequestValidationError as exc:
+                return jsonify({'error': exc.message}), exc.status_code
 
-                if not isinstance(alpha_input, list):
-                    return jsonify({'error': 'Alpha parameters must be an array'}), 400
-
-                if not isinstance(b_input, list):
-                    return jsonify({'error': 'B parameters must be an array'}), 400
-
-                # Convert to float values
-                alpha_input = [float(a) for a in alpha_input]
-                b_input = [float(b) for b in b_input]
-
-                print(f"Alpha parameters: {alpha_input}")
-                print(f"B parameters: {b_input}")
-            except (ValueError, TypeError) as e:
-                return jsonify({'error': f'Invalid parameters: {str(e)}'}), 400
+            print(f"Alpha parameters: {alpha_input}")
+            print(f"B parameters: {b_input}")
 
             # If a custom SAM is provided, use the dynamic model
             if sam:
-                # Validate SAM structure
-                if not isinstance(sam, dict):
-                    return jsonify({'error': 'SAM must be an object'}), 400
+                try:
+                    sam_info = validate_sam_structure(sam)
+                except RequestValidationError as exc:
+                    return jsonify({'error': exc.message}), exc.status_code
+                sectors = sam_info['sectors']
+                factors = sam_info['factors']
+                households = sam_info['households']
+                sam_data = sam_info['data']
 
-                # Extract SAM components
-                sectors = sam.get('goods', [])
-                factors = sam.get('factors', [])
-                households = sam.get('households', [])
-                sam_data = sam.get('data', [])
-
-                # Validate SAM components
-                if not isinstance(sectors, list):
-                    return jsonify({'error': 'SAM goods must be an array'}), 400
-                if not isinstance(factors, list):
-                    return jsonify({'error': 'SAM factors must be an array'}), 400
-                if not isinstance(households, list):
-                    return jsonify({'error': 'SAM households must be an array'}), 400
-                if not isinstance(sam_data, list):
-                    return jsonify({'error': 'SAM data must be an array'}), 400
-
-                # Validate SAM dimensions
-                if len(sectors) == 0:
-                    return jsonify({'error': 'SAM must have at least one sector'}), 400
-                if len(factors) == 0:
-                    return jsonify({'error': 'SAM must have at least one factor'}), 400
-                if len(households) == 0:
-                    return jsonify({'error': 'SAM must have at least one household'}), 400
-                if len(sam_data) == 0:
-                    return jsonify({'error': 'SAM data cannot be empty'}), 400
-
-                # If alpha and b parameters don't match sector count, adjust them
                 if len(alpha_input) != len(sectors):
-                    print(f"Warning: Alpha parameters count ({len(alpha_input)}) doesn't match sector count ({len(sectors)}). Adjusting...")
-                    # Create default values if alpha_input is too short
-                    if len(alpha_input) < len(sectors):
-                        # Calculate remaining weight
-                        total_weight = sum(alpha_input)
-                        remaining_weight = 1.0 - total_weight if total_weight < 1.0 else 0.0
-                        per_sector = remaining_weight / (len(sectors) - len(alpha_input))
-                        alpha_input.extend([per_sector] * (len(sectors) - len(alpha_input)))
-                    else:
-                        # Truncate if too long
-                        alpha_input = alpha_input[:len(sectors)]
-
-                    # Normalize to sum to 1.0
+                    print(
+                        f"Warning: Alpha parameters count ({len(alpha_input)}) doesn't match sector count ({len(sectors)}). Adjusting..."
+                    )
+                    alpha_input = adjust_parameter_list(alpha_input, len(sectors), 1.0 / len(sectors))
                     total = sum(alpha_input)
-                    if total > 0:
-                        alpha_input = [a/total for a in alpha_input]
-                    else:
-                        alpha_input = [1.0/len(sectors)] * len(sectors)
-
+                    if total:
+                        alpha_input = [a / total for a in alpha_input]
                     print(f"Adjusted alpha parameters: {alpha_input}")
 
                 if len(b_input) != len(sectors):
-                    print(f"Warning: B parameters count ({len(b_input)}) doesn't match sector count ({len(sectors)}). Adjusting...")
-                    # Fill with 1.0 if too short, truncate if too long
-                    if len(b_input) < len(sectors):
-                        b_input.extend([1.0] * (len(sectors) - len(b_input)))
-                    else:
-                        b_input = b_input[:len(sectors)]
-
+                    print(
+                        f"Warning: B parameters count ({len(b_input)}) doesn't match sector count ({len(sectors)}). Adjusting..."
+                    )
+                    b_input = adjust_parameter_list(b_input, len(sectors), 1.0)
                     print(f"Adjusted b parameters: {b_input}")
 
                 print(f"Using dynamic model with {len(sectors)} sectors, {len(factors)} factors, {len(households)} households")
@@ -228,13 +182,10 @@ def solve_model():
 @app.route('/compare-scenarios', methods=['POST'])
 def compare_scenarios():
     try:
-        # Validate request data
-        if not request.is_json:
-            return jsonify({'error': 'Request must be JSON'}), 400
-
-        data = request.json
-        if not data:
-            return jsonify({'error': 'Empty request body'}), 400
+        try:
+            data = parse_json_request(request)
+        except RequestValidationError as exc:
+            return jsonify({'error': exc.message}), exc.status_code
 
         template_id = 'simple-cge'  # For MVP, only simple CGE is supported
         baseline_params = data.get('baselineParams', {})
@@ -253,69 +204,31 @@ def compare_scenarios():
         print(f"Scenario params: {scenario_params}")
         print(f"SAM provided: {'Yes' if sam else 'No'}")
 
-        # Function to safely extract and convert parameters
-        def extract_params(params, default_alpha, default_b):
-            try:
-                alpha = params.get('alpha', default_alpha)
-                b = params.get('b', default_b)
-
-                if not isinstance(alpha, list):
-                    print(f"Warning: Alpha parameter is not an array. Using default.")
-                    alpha = default_alpha
-
-                if not isinstance(b, list):
-                    print(f"Warning: B parameter is not an array. Using default.")
-                    b = default_b
-
-                # Convert to float
-                alpha = [float(a) for a in alpha]
-                b = [float(b_val) for b_val in b]
-
-                return alpha, b
-            except (ValueError, TypeError) as e:
-                print(f"Error extracting parameters: {e}")
-                return default_alpha, default_b
-
-        # If a custom SAM is provided, use the dynamic model
         if sam:
-            # Validate SAM structure
-            if not isinstance(sam, dict):
-                return jsonify({'error': 'SAM must be an object'}), 400
+            try:
+                sam_info = validate_sam_structure(sam)
+            except RequestValidationError as exc:
+                return jsonify({'error': exc.message}), exc.status_code
 
-            # Extract SAM components
-            sectors = sam.get('goods', [])
-            factors = sam.get('factors', [])
-            households = sam.get('households', [])
-            sam_data = sam.get('data', [])
-
-            # Validate SAM components
-            if not isinstance(sectors, list) or not sectors:
-                return jsonify({'error': 'SAM goods must be a non-empty array'}), 400
-            if not isinstance(factors, list) or not factors:
-                return jsonify({'error': 'SAM factors must be a non-empty array'}), 400
-            if not isinstance(households, list) or not households:
-                return jsonify({'error': 'SAM households must be a non-empty array'}), 400
-            if not isinstance(sam_data, list) or not sam_data:
-                return jsonify({'error': 'SAM data must be a non-empty array'}), 400
+            sectors = sam_info['sectors']
+            factors = sam_info['factors']
+            households = sam_info['households']
+            sam_data = sam_info['data']
 
             # Default parameters based on sector count
-            default_alpha = [1.0/len(sectors)] * len(sectors)
+            default_alpha = [1.0 / len(sectors)] * len(sectors)
             default_b = [1.0] * len(sectors)
 
-            # Extract and adjust parameters
-            baseline_alpha, baseline_b = extract_params(baseline_params, default_alpha, default_b)
-            scenario_alpha, scenario_b = extract_params(scenario_params, default_alpha, default_b)
+            try:
+                baseline_alpha, baseline_b = extract_parameters(baseline_params, default_alpha, default_b)
+                scenario_alpha, scenario_b = extract_parameters(scenario_params, default_alpha, default_b)
+            except RequestValidationError as exc:
+                return jsonify({'error': exc.message}), exc.status_code
 
-            # Adjust parameter lengths if needed
-            def adjust_param_length(param, default_val, target_length):
-                if len(param) < target_length:
-                    param.extend([default_val] * (target_length - len(param)))
-                return param[:target_length]  # Truncate if too long
-
-            baseline_alpha = adjust_param_length(baseline_alpha, 1.0/len(sectors), len(sectors))
-            baseline_b = adjust_param_length(baseline_b, 1.0, len(sectors))
-            scenario_alpha = adjust_param_length(scenario_alpha, 1.0/len(sectors), len(sectors))
-            scenario_b = adjust_param_length(scenario_b, 1.0, len(sectors))
+            baseline_alpha = adjust_parameter_list(baseline_alpha, len(sectors), 1.0 / len(sectors))
+            baseline_b = adjust_parameter_list(baseline_b, len(sectors), 1.0)
+            scenario_alpha = adjust_parameter_list(scenario_alpha, len(sectors), 1.0 / len(sectors))
+            scenario_b = adjust_parameter_list(scenario_b, len(sectors), 1.0)
 
             # Normalize alpha parameters to sum to 1.0
             def normalize_alpha(alpha):
@@ -431,23 +344,19 @@ def compare_scenarios():
 
         # If no custom SAM provided, use default model
         try:
-            # Default parameters for the fixed model
             default_alpha = [0.3, 0.7]
             default_b = [1.0, 1.0]
 
-            # Extract parameters
-            baseline_alpha, baseline_b = extract_params(baseline_params, default_alpha, default_b)
-            scenario_alpha, scenario_b = extract_params(scenario_params, default_alpha, default_b)
+            try:
+                baseline_alpha, baseline_b = extract_parameters(baseline_params, default_alpha, default_b)
+                scenario_alpha, scenario_b = extract_parameters(scenario_params, default_alpha, default_b)
+            except RequestValidationError as exc:
+                return jsonify({'error': exc.message}), exc.status_code
 
-            # Ensure correct length
-            if len(baseline_alpha) != 2:
-                baseline_alpha = default_alpha
-            if len(baseline_b) != 2:
-                baseline_b = default_b
-            if len(scenario_alpha) != 2:
-                scenario_alpha = default_alpha
-            if len(scenario_b) != 2:
-                scenario_b = default_b
+            baseline_alpha = adjust_parameter_list(baseline_alpha, 2, 0.5)
+            baseline_b = adjust_parameter_list(baseline_b, 2, 1.0)
+            scenario_alpha = adjust_parameter_list(scenario_alpha, 2, 0.5)
+            scenario_b = adjust_parameter_list(scenario_b, 2, 1.0)
 
             print(f"Solving baseline model with default SAM")
             baseline_container = add_input_solve(baseline_b, baseline_alpha)
