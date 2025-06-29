@@ -7,7 +7,7 @@ import ResultsDisplay from '../components/ResultsDisplay';
 import ComparisonDisplay from '../components/ComparisonDisplay';
 import { ModelTemplate, SAM, ModelParameters, ModelResults, ScenarioComparison } from '../utils/types';
 import templates from '../utils/templateData';
-import { generateDefaultSam, generateEmptySam, validateSam } from '../utils/samUtils';
+import { generateDefaultSam, generateEmptySam, validateSam, exportSamToCsv } from '../utils/samUtils';
 import { solveModel, compareScenarios } from '../utils/api';
 
 const ModelBuilderPage = () => {
@@ -249,6 +249,21 @@ const ModelBuilderPage = () => {
       alpha: sam.goods.map((_, index) => 1 / sam.goods.length),
       b: sam.goods.map(() => 1.0)
     });
+  };
+
+  // Download the current SAM as a CSV file
+  const handleDownloadCsv = () => {
+    const csv = exportSamToCsv(samData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'sam.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
   
   // Handle parameter changes
@@ -685,6 +700,14 @@ const ModelBuilderPage = () => {
             <div className="mb-6">
               <h4 className="text-lg font-medium mb-2">Edit SAM</h4>
               <SAMTable sam={samData} onChange={setSamData} />
+              <div className="mt-4">
+                <button
+                  onClick={handleDownloadCsv}
+                  className="btn bg-white border border-primary text-primary hover:bg-primary/5"
+                >
+                  Download CSV
+                </button>
+              </div>
             </div>
           </div>
           
