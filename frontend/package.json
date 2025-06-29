@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext .js,.jsx,.ts,.tsx"
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
     "ag-grid-community": "^33.2.4",
