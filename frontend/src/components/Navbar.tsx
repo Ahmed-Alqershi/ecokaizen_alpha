@@ -44,6 +44,16 @@ const Navbar = () => {
               >
                 Table Test
               </Link>
+              <Link
+                to="/login"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  location.pathname === '/login'
+                    ? 'border-primary text-darkgray'
+                    : 'border-transparent text-midgray hover:text-darkgray'
+                }`}
+              >
+                Login
+              </Link>
             </div>
           </div>
         </div>

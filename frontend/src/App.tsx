@@ -4,6 +4,8 @@ import Footer from './components/Footer';
 import HomePage from './screens/HomePage';
 import ModelBuilderPage from './screens/ModelBuilderPage';
 import TableTestPage from './screens/TableTestPage';
+import LoginPage from './screens/LoginPage';
+import SignupPage from './screens/SignupPage';
 import './styles/index.css';
 
 const App = () => {
@@ -16,6 +18,8 @@ const App = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/model-builder" element={<ModelBuilderPage />} />
             <Route path="/table-test" element={<TableTestPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
           </Routes>
         </main>
         <Footer />

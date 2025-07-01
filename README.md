@@ -89,6 +89,7 @@ Future versions will add:
 - Parameter input forms
 - Results visualization with charts
 - Scenario comparison dashboard
+- Basic user authentication with login and signup pages
 
 ## License
 
