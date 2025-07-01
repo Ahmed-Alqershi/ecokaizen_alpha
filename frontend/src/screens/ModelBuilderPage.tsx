@@ -724,6 +724,14 @@ const ModelBuilderPage = () => {
                   <FileUploader onSamLoaded={handleSamUpload} />
                 </div>
 
+                <div className="relative flex items-center mb-6">
+                  <div className="flex-grow border-t border-midgray" />
+                  <span className="flex-shrink mx-4 text-darkgray/60 uppercase text-sm font-medium">
+                    Or
+                  </span>
+                  <div className="flex-grow border-t border-midgray" />
+                </div>
+
                 <div className="mb-6">
                   <h4 className="text-lg font-medium mb-2">SAM Editor</h4>
                   <SAMTable sam={samData} onChange={setSamData} />
