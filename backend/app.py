@@ -4,6 +4,8 @@ import numpy as np
 import json
 import random
 import traceback
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
 from models.splcge import add_input_solve
 from models.dynamic_splcge import dynamic_solve, extract_results
 from sam_utils.generator import generate_random_sam as gen_sam
@@ -18,6 +20,29 @@ from utils.validators import (
 app = Flask(__name__)
 # Enable CORS for all routes and all origins
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+
+def get_db_connection():
+    conn = sqlite3.connect('users.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            )
+            """
+        )
+        conn.commit()
+
+
+init_db()
 
 @app.route('/solve-model', methods=['POST'])
 def solve_model():
@@ -179,6 +204,49 @@ def solve_model():
             'trace': stack_trace,
             'details': 'There was an unexpected error processing your request.'
         }), 500
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    if not request.is_json:
+        return jsonify({'error': 'Request must be JSON'}), 400
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+    try:
+        with get_db_connection() as conn:
+            conn.execute(
+                'INSERT INTO users (username, password) VALUES (?, ?)',
+                (username, generate_password_hash(password))
+            )
+            conn.commit()
+        return jsonify({'message': 'User registered successfully'})
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'Username already exists'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    if not request.is_json:
+        return jsonify({'error': 'Request must be JSON'}), 400
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+    try:
+        with get_db_connection() as conn:
+            cur = conn.execute('SELECT password FROM users WHERE username=?', (username,))
+            row = cur.fetchone()
+        if row and check_password_hash(row['password'], password):
+            return jsonify({'message': 'Login successful'})
+        return jsonify({'error': 'Invalid credentials'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/compare-scenarios', methods=['POST'])
 def compare_scenarios():
