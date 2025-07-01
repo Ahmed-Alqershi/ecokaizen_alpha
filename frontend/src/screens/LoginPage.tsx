@@ -7,7 +7,6 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPopup, setShowPopup] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -17,29 +16,14 @@ const LoginPage = () => {
       navigate('/');
     } catch (err: any) {
       setError(err?.error || 'Incorrect username or password.');
-      setShowPopup(true);
     }
   };
 
   return (
-    <>
-      {showPopup && error && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-md p-6 max-w-sm w-full">
-            <p className="mb-4 text-center text-warning">{error}</p>
-            <button
-              type="button"
-              className="btn btn-primary w-full"
-              onClick={() => setShowPopup(false)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="max-w-md mx-auto my-12 card">
-        <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="max-w-md mx-auto my-12 card">
+      <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
+      {error && <p className="text-red-600 mb-4 text-center">{error}</p>}
+      <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
             className="input w-full"
@@ -50,17 +34,42 @@ const LoginPage = () => {
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
-              className="input w-full pr-16"
+              className="input w-full pr-12"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
             <button
               type="button"
-              className="absolute inset-y-0 right-0 px-3 text-sm text-darkgray/60"
+              className="absolute inset-y-0 right-0 px-3 flex items-center text-darkgray/60"
               onClick={() => setShowPassword(!showPassword)}
             >
-              {showPassword ? 'Hide' : 'Show'}
+              {showPassword ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                  <circle cx="12" cy="12" r="3" />
+                  <line x1="4" y1="4" x2="20" y2="20" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
             </button>
           </div>
           <button type="submit" className="btn btn-primary w-full">
@@ -74,7 +83,6 @@ const LoginPage = () => {
           </Link>
         </p>
       </div>
-    </>
   );
 };
 
