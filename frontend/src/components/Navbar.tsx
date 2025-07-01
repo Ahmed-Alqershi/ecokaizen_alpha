@@ -46,16 +46,6 @@ const Navbar = () => {
                 >
                   Model Builder
                 </Link>
-                <Link
-                  to="/table-test"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    location.pathname === '/table-test'
-                      ? 'border-primary text-darkgray'
-                      : 'border-transparent text-midgray hover:text-darkgray'
-                  }`}
-                >
-                  Table Test
-                </Link>
               </div>
             )}
           </div>
