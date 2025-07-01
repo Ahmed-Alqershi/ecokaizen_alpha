@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 
 const HomePage = () => {
+  const { username } = useContext(AuthContext);
   const features = [
     {
       icon: '📊',
@@ -35,10 +38,10 @@ const HomePage = () => {
           Empower decision-making with economic simulations. No math required.
         </p>
         <Link
-          to="/model-builder"
+          to={username ? '/model-builder' : '/signup'}
           className="btn btn-primary text-lg py-3 px-8"
         >
-          Build Your Model
+          {username ? 'Build Your Model' : 'Get Started'}
         </Link>
       </div>
 
