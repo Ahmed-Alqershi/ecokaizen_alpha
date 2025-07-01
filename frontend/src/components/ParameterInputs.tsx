@@ -24,35 +24,25 @@ const ParameterInputs = ({ initialParams, sam, onChange }: ParameterInputsProps)
   useEffect(() => {
     if (sam.goods.length > 0) {
       // Initialize alpha values (utility function coefficients for each good)
-      const defaultAlpha = sam.goods.map((_, index) =>
-        initialParams?.alpha?.[index] !== undefined
+      const defaultAlpha = sam.goods.map((_, index) => 
+        initialParams?.alpha?.[index] !== undefined 
           ? initialParams.alpha[index]
           : 1 / sam.goods.length
       );
-
+      setAlphaValues(defaultAlpha);
+      
       // Initialize b values (production function scale parameters)
-      const defaultB = sam.goods.map((_, index) =>
+      const defaultB = sam.goods.map((_, index) => 
         initialParams?.b?.[index] !== undefined
           ? initialParams.b[index]
           : 1.0
       );
-
-      const alphaChanged =
-        defaultAlpha.length !== alphaValues.length ||
-        defaultAlpha.some((v, i) => v !== alphaValues[i]);
-      const bChanged =
-        defaultB.length !== bValues.length ||
-        defaultB.some((v, i) => v !== bValues[i]);
-
-      if (alphaChanged) setAlphaValues(defaultAlpha);
-      if (bChanged) setBValues(defaultB);
-
-      if (alphaChanged || bChanged) {
-        console.log('ParameterInputs - Initial values:', {
-          alpha: defaultAlpha,
-          b: defaultB
-        });
-      }
+      setBValues(defaultB);
+      
+      console.log('ParameterInputs - Initial values:', {
+        alpha: defaultAlpha,
+        b: defaultB
+      });
     }
   }, [sam.goods.length, initialParams]);
 
