@@ -5,6 +5,9 @@ import json
 import random
 import traceback
 import sqlite3
+import os
+import smtplib
+from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from models.splcge import add_input_solve
 from models.dynamic_splcge import dynamic_solve, extract_results
@@ -43,6 +46,30 @@ def init_db():
 
 
 init_db()
+
+
+def send_contact_email(name: str, email: str, message: str):
+    smtp_server = os.environ.get('SMTP_SERVER', 'localhost')
+    smtp_port = int(os.environ.get('SMTP_PORT', 25))
+    smtp_user = os.environ.get('SMTP_USERNAME')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+
+    msg = EmailMessage()
+    msg['Subject'] = 'New Contact Form Submission'
+    msg['From'] = email if not smtp_user else smtp_user
+    msg['To'] = 'aalqershi@kaizen.sa'
+    msg.set_content(f"Name: {name}\nEmail: {email}\n\n{message}")
+
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            if smtp_user and smtp_password:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+        return True, 'Message sent'
+    except Exception as e:
+        print(f'Error sending email: {e}')
+        return False, str(e)
 
 @app.route('/solve-model', methods=['POST'])
 def solve_model():
@@ -692,6 +719,23 @@ def generate_random_sam():
             'trace': stack_trace,
             'details': 'There was an unexpected error processing your request.'
         }), 500
+
+
+@app.route('/contact', methods=['POST'])
+def contact():
+    if not request.is_json:
+        return jsonify({'error': 'Request must be JSON'}), 400
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    message = data.get('message')
+    if not name or not email or not message:
+        return jsonify({'error': 'Name, email and message are required'}), 400
+
+    success, info = send_contact_email(name, email, message)
+    if success:
+        return jsonify({'message': 'Message sent'})
+    return jsonify({'error': info}), 500
 
 # Add a simple test route
 @app.route('/', methods=['GET'])
