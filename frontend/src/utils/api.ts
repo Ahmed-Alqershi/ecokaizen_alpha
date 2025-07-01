@@ -2,7 +2,7 @@ import axios from 'axios';
 import { ModelParameters, ModelResults, SAM, ScenarioComparison } from './types';
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:5001',
+  baseURL: 'http://127.0.0.1:5002',
   headers: {
     'Content-Type': 'application/json',
   },

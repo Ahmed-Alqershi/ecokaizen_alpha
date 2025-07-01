@@ -12,6 +12,7 @@ from utils.validators import (
     adjust_parameter_list,
     parse_json_request,
     validate_sam_structure,
+    extract_parameters
 )
 
 app = Flask(__name__)
@@ -633,4 +634,4 @@ def home():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001, host='0.0.0.0')
+    app.run(debug=True, port=5002, host='0.0.0.0')
