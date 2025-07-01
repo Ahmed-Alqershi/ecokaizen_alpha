@@ -1,10 +1,18 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useContext } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useContext, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { username, logout } = useContext(AuthContext);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    setMenuOpen(false);
+    navigate('/');
+  };
   
   return (
     <nav className="bg-white shadow-sm">
@@ -53,16 +61,32 @@ const Navbar = () => {
           </div>
           <div className="flex items-center">
             {username ? (
-              <div className="relative group">
-                <span className="font-bold cursor-pointer">{username}</span>
-                <div className="absolute right-0 mt-2 w-24 bg-white border rounded shadow-lg hidden group-hover:block">
-                  <button
-                    onClick={logout}
-                    className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="font-bold text-blue-800 flex items-center focus:outline-none"
+                >
+                  {username}
+                  <svg
+                    className={`w-4 h-4 ml-1 transition-transform transform ${menuOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    viewBox="0 0 24 24"
                   >
-                    Log out
-                  </button>
-                </div>
+                    <path d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-24 bg-white border rounded shadow-lg">
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                    >
+                      Log out
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex space-x-4">
