@@ -50,7 +50,7 @@ const HomePage = () => {
         <h2 className="text-2xl font-bold text-center mb-12">Platform Features</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
-            <div key={index} className="card flex flex-col items-center text-center">
+            <div key={index} className="feature-card flex flex-col items-center text-center">
               <div className="text-4xl mb-4">{feature.icon}</div>
               <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
               <p className="text-darkgray/70">{feature.description}</p>
