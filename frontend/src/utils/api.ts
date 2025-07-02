@@ -108,6 +108,15 @@ export const generateRandomSam = async (
   }
 };
 
+export const sendContactMessage = async (
+  name: string,
+  email: string,
+  message: string
+) => {
+  const response = await api.post('/contact', { name, email, message });
+  return response.data;
+};
+
 export const registerUser = async (username: string, password: string) => {
   const response = await api.post('/register', { username, password });
   return response.data;

@@ -5,6 +5,9 @@ import HomePage from './screens/HomePage';
 import ModelBuilderPage from './screens/ModelBuilderPage';
 import LoginPage from './screens/LoginPage';
 import SignupPage from './screens/SignupPage';
+import AboutPage from './screens/AboutPage';
+import BlogPage from './screens/BlogPage';
+import ContactPage from './screens/ContactPage';
 import './styles/index.css';
 
 const App = () => {
@@ -15,6 +18,9 @@ const App = () => {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             <Route path="/model-builder" element={<ModelBuilderPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />

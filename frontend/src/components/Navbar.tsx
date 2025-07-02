@@ -24,18 +24,48 @@ const Navbar = () => {
                 CGE Model Builder
               </Link>
             </div>
-            {username && (
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <Link
-                  to="/"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    location.pathname === '/'
-                      ? 'border-primary text-darkgray'
-                      : 'border-transparent text-midgray hover:text-darkgray'
-                  }`}
-                >
-                  Home
-                </Link>
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <Link
+                to="/"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  location.pathname === '/'
+                    ? 'border-primary text-darkgray'
+                    : 'border-transparent text-midgray hover:text-darkgray'
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/blog"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  location.pathname === '/blog'
+                    ? 'border-primary text-darkgray'
+                    : 'border-transparent text-midgray hover:text-darkgray'
+                }`}
+              >
+                Blog
+              </Link>
+              <Link
+                to="/about"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  location.pathname === '/about'
+                    ? 'border-primary text-darkgray'
+                    : 'border-transparent text-midgray hover:text-darkgray'
+                }`}
+              >
+                About
+              </Link>
+              <Link
+                to="/contact"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  location.pathname === '/contact'
+                    ? 'border-primary text-darkgray'
+                    : 'border-transparent text-midgray hover:text-darkgray'
+                }`}
+              >
+                Contact
+              </Link>
+              {username && (
                 <Link
                   to="/model-builder"
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
@@ -46,8 +76,8 @@ const Navbar = () => {
                 >
                   Model Builder
                 </Link>
-              </div>
-            )}
+              )}
+            </div>
           </div>
           <div className="flex items-center">
             {username ? (
