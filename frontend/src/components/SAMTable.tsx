@@ -3,6 +3,10 @@ import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { SAM } from '../utils/types';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+
+// Register all of the community modules
+ModuleRegistry.registerModules([ AllCommunityModule ]);
 
 interface SAMTableProps {
   sam: SAM;
