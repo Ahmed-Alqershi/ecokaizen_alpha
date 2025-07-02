@@ -39,7 +39,7 @@ const HomePage = () => {
         </p>
         <Link
           to={username ? '/model-builder' : '/signup'}
-          className="btn text-lg py-3 px-8 text-white bg-gradient-to-r from-primary to-secondary shadow-md hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+          className="btn text-lg py-3 px-8 text-white bg-gradient-to-r from-primary to-secondary shadow-md hover:shadow-lg hover:-translate-y-1 transition-all duration-300 hover-invert"
         >
           {username ? 'Build Your Model' : 'Get Started'}
         </Link>
