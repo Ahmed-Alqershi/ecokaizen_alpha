@@ -721,7 +721,12 @@ const ModelBuilderPage = () => {
 
                 <div className="mb-6">
                   <h4 className="text-lg font-medium mb-2">Upload SAM</h4>
-                  <FileUploader onSamLoaded={handleSamUpload} />
+                  <FileUploader
+                    onSamLoaded={handleSamUpload}
+                    goods={sectorNames}
+                    factors={factorNames}
+                    households={householdNames}
+                  />
                 </div>
 
                 <div className="relative flex items-center mb-6">

@@ -2,44 +2,51 @@ import { SAM } from './types';
 import * as ExcelJS from 'exceljs';
 import Papa from 'papaparse';
 
-export const parseSamFromCsv = (csvContent: string): SAM | null => {
+export interface ParsedSam {
+  columnNames: string[];
+  rowNames: string[];
+  data: number[][];
+}
+
+export const parseSamFromCsv = (csvContent: string): ParsedSam | null => {
   try {
-    const result = Papa.parse(csvContent, { header: true });
+    const result = Papa.parse<string[]>(csvContent.trim());
     if (result.errors.length > 0) {
       console.error('CSV parsing errors:', result.errors);
       return null;
     }
 
-    const data = result.data as Record<string, string>[];
-    const headers = Object.keys(data[0]).filter(h => h !== '');
-    
-    // Extract SAM entries, goods, factors, households
-    const entries = [...headers];
-    
-    // Simplified for MVP - we'll refine this with backend coordination
-    const goods = entries.filter(e => e.startsWith('SECTOR') || ['BRD', 'MLK'].includes(e));
-    const factors = entries.filter(e => e.startsWith('FACTOR') || ['CAP', 'LAB'].includes(e));
-    const households = entries.filter(e => e.startsWith('HH') || ['HOH'].includes(e));
-    
-    // Convert data to numeric matrix
-    const numericData = data.map(row => {
-      return headers.map(header => parseFloat(row[header] || '0'));
-    });
-    
-    return {
-      entries,
-      goods,
-      factors,
-      households,
-      data: numericData
-    };
+    const rows = result.data as string[][];
+    if (!rows || rows.length === 0) return null;
+
+    const header = rows[0];
+    const columnNames = header.slice(1).map(h => String(h).trim());
+
+    const rowNames: string[] = [];
+    const numericData: number[][] = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      rowNames.push(String(row[0]).trim());
+      const values: number[] = [];
+      for (let j = 1; j <= columnNames.length; j++) {
+        const val = row[j];
+        const num = parseFloat(val ?? '0');
+        values.push(isNaN(num) ? 0 : num);
+      }
+      numericData.push(values);
+    }
+
+    return { columnNames, rowNames, data: numericData };
   } catch (error) {
     console.error('Error parsing CSV:', error);
     return null;
   }
 };
 
-export const parseSamFromExcel = async (file: File): Promise<SAM | null> => {
+export const parseSamFromExcel = async (file: File): Promise<ParsedSam | null> => {
   try {
     const workbook = new ExcelJS.Workbook();
     const arrayBuffer = await file.arrayBuffer();
