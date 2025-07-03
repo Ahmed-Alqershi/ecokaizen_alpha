@@ -162,8 +162,24 @@ export const exportSamToCsv = (sam: SAM): string => {
     });
     return rowData;
   });
-  
+
   return Papa.unparse(rows);
+};
+
+export const exportSamToExcel = async (sam: SAM): Promise<Blob> => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('SAM');
+
+  worksheet.addRow(['', ...sam.entries]);
+  sam.data.forEach((row, idx) => {
+    worksheet.addRow([sam.entries[idx], ...row]);
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return new Blob([buffer], {
+    type:
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
 };
 
 export const validateSam = (sam: SAM): { valid: boolean; message?: string } => {
@@ -185,15 +201,25 @@ export const validateSam = (sam: SAM): { valid: boolean; message?: string } => {
   
   for (const row of sam.data) {
     if (row.length !== sam.entries.length) {
-      return { 
-        valid: false, 
-        message: `SAM matrix columns (${row.length}) do not match entries count (${sam.entries.length})` 
+      return {
+        valid: false,
+        message: `SAM matrix columns (${row.length}) do not match entries count (${sam.entries.length})`
       };
     }
   }
-  
-  // In a full implementation, we would check row/column sums
-  // For MVP, we'll do a simplified check
-  
+
+  // Check that row sums equal column sums (balanced SAM)
+  const rowSums = sam.data.map(row => row.reduce((sum, val) => sum + Number(val || 0), 0));
+  const colSums = sam.entries.map((_, colIndex) => sam.data.reduce((sum, row) => sum + Number(row[colIndex] || 0), 0));
+
+  for (let i = 0; i < sam.entries.length; i++) {
+    if (Math.abs(rowSums[i] - colSums[i]) > 1e-6) {
+      return {
+        valid: false,
+        message: `Row and column totals differ for ${sam.entries[i]}`,
+      };
+    }
+  }
+
   return { valid: true };
 };

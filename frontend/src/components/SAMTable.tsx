@@ -192,7 +192,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
   return (
     <div className="w-full">
       <div
-        className="ag-theme-alpine w-full h-[60vh] border border-midgray"
+        className="ag-theme-alpine w-full max-h-[60vh] border border-midgray overflow-auto"
       >
         {!sam || !sam.entries || sam.entries.length === 0 ? (
           <div className="flex flex-col h-full">
@@ -204,10 +204,9 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
           </div>
         ) : (
           /* Key AG-Grid fixes:
-             1. Added style with proper height
-             2. Added domLayout="normal"
-             3. Added immutableData={false}
-             4. Added key based on entries length to force re-render
+             1. Auto height layout to fit content
+             2. Added immutableData={false}
+             3. Added key based on entries length to force re-render
           */
           <AgGridReact
             className="w-full h-full"
@@ -223,7 +222,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
               editable: !readOnly,
               minWidth: 100
             }}
-            domLayout="normal"
+            domLayout="autoHeight"
             immutableData={false}
             rowHeight={40}
           />
