@@ -14,8 +14,8 @@ const LoginPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await loginUser(username, password);
-      login(username);
+      const data = await loginUser(username, password);
+      login(data.username, data.avatar);
       navigate('/');
     } catch (err: any) {
       setError(err?.error || 'Incorrect username or password.');
