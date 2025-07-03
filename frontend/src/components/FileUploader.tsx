@@ -1,14 +1,18 @@
 import { useState, useRef } from 'react';
 import { SAM } from '../utils/types';
-import { parseSamFromCsv, parseSamFromExcel } from '../utils/samUtils';
+import { ParsedSam, parseSamFromCsv, parseSamFromExcel } from '../utils/samUtils';
 
 interface FileUploaderProps {
   onSamLoaded: (sam: SAM) => void;
+  goods: string[];
+  factors: string[];
+  households: string[];
 }
 
-const FileUploader = ({ onSamLoaded }: FileUploaderProps) => {
+const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -42,19 +46,58 @@ const FileUploader = ({ onSamLoaded }: FileUploaderProps) => {
 
   const processFile = async (file: File) => {
     try {
-      let sam: SAM | null = null;
+      let parsed: ParsedSam | null = null;
       
       if (file.name.endsWith('.csv')) {
         const text = await file.text();
-        sam = parseSamFromCsv(text);
+        parsed = parseSamFromCsv(text);
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        sam = await parseSamFromExcel(file);
+        parsed = await parseSamFromExcel(file);
       } else {
         setError('Unsupported file format. Please upload a CSV or Excel file.');
         return;
       }
-      
-      if (sam) {
+
+      if (parsed) {
+        const expectedEntries = [...goods, ...factors, ...households];
+        const headerSet = new Set(parsed.columnNames.map(n => n.trim()));
+        const rowSet = new Set(parsed.rowNames.map(n => n.trim()));
+        const expectedSet = new Set(expectedEntries.map(n => n.trim()));
+
+        let finalData = parsed.data;
+        let showWarning = false;
+
+        const namesMatch =
+          headerSet.size === expectedSet.size &&
+          rowSet.size === expectedSet.size &&
+          [...expectedSet].every(n => headerSet.has(n) && rowSet.has(n));
+
+        if (namesMatch) {
+          const rowIndex = new Map(parsed.rowNames.map((n, i) => [n.trim(), i]));
+          const colIndex = new Map(parsed.columnNames.map((n, i) => [n.trim(), i]));
+
+          finalData = expectedEntries.map(rowName => {
+            const r = parsed.data[rowIndex.get(rowName)!];
+            return expectedEntries.map(colName => r[colIndex.get(colName)!]);
+          });
+        } else {
+          showWarning = true;
+        }
+
+        const sam: SAM = {
+          entries: expectedEntries,
+          goods,
+          factors,
+          households,
+          data: finalData,
+        };
+
+        if (showWarning) {
+          setWarning('Uploaded names do not match the configured names. Using configured names instead.');
+        } else {
+          setWarning(null);
+        }
+
         onSamLoaded(sam);
       } else {
         setError('Failed to parse the SAM data. Please check the file format.');
@@ -118,6 +161,11 @@ const FileUploader = ({ onSamLoaded }: FileUploaderProps) => {
       {error && (
         <div className="mt-2 text-sm text-warning">
           {error}
+        </div>
+      )}
+      {warning && !error && (
+        <div className="mt-2 text-sm text-warning">
+          {warning}
         </div>
       )}
     </div>
