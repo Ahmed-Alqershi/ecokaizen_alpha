@@ -48,6 +48,16 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT")
         except sqlite3.OperationalError:
             pass
+
+        # Assign avatars to users who don't have one yet
+        cur = conn.execute(
+            "SELECT id, username FROM users WHERE avatar IS NULL OR avatar = ''"
+        )
+        for row in cur.fetchall():
+            color = "#%06x" % random.randint(0, 0xFFFFFF)
+            avatar = f"{row['username'][0].upper()}|{color}"
+            conn.execute("UPDATE users SET avatar=? WHERE id=?", (avatar, row['id']))
+
         conn.commit()
 
 
