@@ -118,8 +118,15 @@ export const sendContactMessage = async (
 };
 
 export const registerUser = async (username: string, password: string) => {
-  const response = await api.post('/register', { username, password });
-  return response.data;
+  try {
+    const response = await api.post('/register', { username, password });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw error.response.data;
+    }
+    throw error;
+  }
 };
 
 export const loginUser = async (username: string, password: string) => {
