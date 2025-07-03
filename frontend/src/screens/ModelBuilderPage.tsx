@@ -7,7 +7,13 @@ import ResultsDisplay from '../components/ResultsDisplay';
 import ComparisonDisplay from '../components/ComparisonDisplay';
 import { ModelTemplate, SAM, ModelParameters, ModelResults, ScenarioComparison } from '../utils/types';
 import templates from '../utils/templateData';
-import { generateDefaultSam, generateEmptySam, validateSam, exportSamToCsv } from '../utils/samUtils';
+import {
+  generateDefaultSam,
+  generateEmptySam,
+  validateSam,
+  exportSamToCsv,
+  exportSamToExcel,
+} from '../utils/samUtils';
 import { solveModel, compareScenarios } from '../utils/api';
 
 const ModelBuilderPage = () => {
@@ -33,6 +39,8 @@ const ModelBuilderPage = () => {
   const [samData, setSamData] = useState<SAM>(generateDefaultSam());
   const [isCustomSam, setIsCustomSam] = useState<boolean>(false);
   const [samConfigured, setSamConfigured] = useState<boolean>(false);
+  const [samValid, setSamValid] = useState<boolean>(true);
+  const [samValidationMessage, setSamValidationMessage] = useState<string | null>(null);
   
   // Parameters
   const [modelParameters, setModelParameters] = useState<ModelParameters>({
@@ -178,6 +186,13 @@ const ModelBuilderPage = () => {
       });
     }
   }, [currentStep, useCustomModel, sectorCount, factorCount, householdCount, sectorNames, factorNames, householdNames, useCustomNames]);
+
+  // Validate SAM whenever it changes
+  useEffect(() => {
+    const validation = validateSam(samData);
+    setSamValid(validation.valid);
+    setSamValidationMessage(validation.valid ? null : validation.message || 'Invalid SAM');
+  }, [samData]);
   
   // Handle template selection
   const handleSelectTemplate = (template: ModelTemplate) => {
@@ -278,6 +293,20 @@ const ModelBuilderPage = () => {
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', 'sam.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Download the current SAM as an Excel file
+  const handleDownloadExcel = async () => {
+    const blob = await exportSamToExcel(samData);
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'sam.xlsx');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -738,7 +767,23 @@ const ModelBuilderPage = () => {
                 </div>
 
                 <div className="mb-6">
-                  <h4 className="text-lg font-medium mb-2">SAM Editor</h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-lg font-medium">SAM Editor</h4>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDownloadCsv}
+                        className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                      >
+                        Download CSV
+                      </button>
+                      <button
+                        onClick={handleDownloadExcel}
+                        className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                      >
+                        Download Excel
+                      </button>
+                    </div>
+                  </div>
                   <SAMTable sam={samData} onChange={setSamData} />
                 </div>
               </div>
@@ -764,7 +809,8 @@ const ModelBuilderPage = () => {
             <button
               onClick={handleSolveModel}
               className="btn btn-primary"
-              disabled={isLoading || !samConfigured}
+              disabled={isLoading || !samConfigured || !samValid}
+              title={!samValid ? samValidationMessage || 'The SAM matrix is not balanced' : undefined}
             >
               {isLoading ? 'Solving...' : 'Solve Model'}
             </button>
