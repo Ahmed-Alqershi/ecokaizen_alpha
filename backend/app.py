@@ -38,10 +38,16 @@ def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
+                password TEXT NOT NULL,
+                avatar TEXT
             )
             """
         )
+        # Ensure avatar column exists for older installations
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
@@ -240,13 +246,14 @@ def register():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
+    avatar = data.get('avatar', 'avatar1.svg')
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
     try:
         with get_db_connection() as conn:
             conn.execute(
-                'INSERT INTO users (username, password) VALUES (?, ?)',
-                (username, generate_password_hash(password))
+                'INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)',
+                (username, generate_password_hash(password), avatar)
             )
             conn.commit()
         return jsonify({'message': 'User registered successfully'})
@@ -267,10 +274,10 @@ def login():
         return jsonify({'error': 'Username and password required'}), 400
     try:
         with get_db_connection() as conn:
-            cur = conn.execute('SELECT password FROM users WHERE username=?', (username,))
+            cur = conn.execute('SELECT password, avatar FROM users WHERE username=?', (username,))
             row = cur.fetchone()
         if row and check_password_hash(row['password'], password):
-            return jsonify({'message': 'Login successful'})
+            return jsonify({'message': 'Login successful', 'username': username, 'avatar': row['avatar']})
         return jsonify({'error': 'Invalid credentials'}), 401
     except Exception as e:
         return jsonify({'error': str(e)}), 500

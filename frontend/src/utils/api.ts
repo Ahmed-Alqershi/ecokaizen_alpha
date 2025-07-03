@@ -117,9 +117,13 @@ export const sendContactMessage = async (
   return response.data;
 };
 
-export const registerUser = async (username: string, password: string) => {
+export const registerUser = async (
+  username: string,
+  password: string,
+  avatar: string
+) => {
   try {
-    const response = await api.post('/register', { username, password });
+    const response = await api.post('/register', { username, password, avatar });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -131,7 +135,7 @@ export const registerUser = async (username: string, password: string) => {
 
 export const loginUser = async (username: string, password: string) => {
   const response = await api.post('/login', { username, password });
-  return response.data;
+  return response.data as { message: string; username: string; avatar: string };
 };
 
 export default api;

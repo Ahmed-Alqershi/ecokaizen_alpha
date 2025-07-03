@@ -5,7 +5,7 @@ import { AuthContext } from '../contexts/AuthContext';
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { username, logout } = useContext(AuthContext);
+  const { username, avatar, logout } = useContext(AuthContext);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -86,6 +86,13 @@ const Navbar = () => {
                   onClick={() => setMenuOpen(!menuOpen)}
                   className="font-bold text-blue-800 flex items-center focus:outline-none"
                 >
+                  {avatar && (
+                    <img
+                      src={`/avatars/${avatar}`}
+                      alt="avatar"
+                      className="w-8 h-8 rounded-full mr-2"
+                    />
+                  )}
                   {username}
                   <svg
                     className={`w-4 h-4 ml-1 transition-transform transform ${menuOpen ? 'rotate-180' : ''}`}
