@@ -76,23 +76,46 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
         }
 
         const trimmedExpected = expectedEntries.map(n => n.trim());
-        const namesMatch =
-          trimmedHeader.every((n, idx) => n === trimmedExpected[idx]) &&
-          trimmedRows.every((n, idx) => n === trimmedExpected[idx]);
 
-        if (!namesMatch) {
+        const headerSet = new Set(trimmedHeader);
+        const rowSet = new Set(trimmedRows);
+
+        const headerMatches =
+          headerSet.size === trimmedExpected.length &&
+          trimmedExpected.every(n => headerSet.has(n));
+        const rowMatches =
+          rowSet.size === trimmedExpected.length &&
+          trimmedExpected.every(n => rowSet.has(n));
+
+        if (!headerMatches || !rowMatches) {
           setError(
             `Names must match configured entries: ${trimmedExpected.join(', ')}`
           );
           return;
         }
 
+        // Reorder rows and columns to match expected entry order
+        const colIndexMap: Record<string, number> = {};
+        trimmedHeader.forEach((name, idx) => {
+          colIndexMap[name] = idx;
+        });
+
+        const rowIndexMap: Record<string, number> = {};
+        trimmedRows.forEach((name, idx) => {
+          rowIndexMap[name] = idx;
+        });
+
+        const reorderedData = expectedEntries.map(rowName => {
+          const originalRow = parsed!.data[rowIndexMap[rowName]];
+          return expectedEntries.map(colName => originalRow[colIndexMap[colName]]);
+        });
+
         const sam: SAM = {
           entries: expectedEntries,
           goods,
           factors,
           households,
-          data: parsed.data,
+          data: reorderedData,
         };
 
         setWarning(null);
