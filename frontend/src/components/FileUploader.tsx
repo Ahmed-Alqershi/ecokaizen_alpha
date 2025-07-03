@@ -60,13 +60,23 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
 
       if (parsed) {
         const expectedEntries = [...goods, ...factors, ...households];
-        const trimmedExpected = expectedEntries.map(n => n.trim());
+        const expectedSize = expectedEntries.length;
+
         const trimmedHeader = parsed.columnNames.map(n => n.trim());
         const trimmedRows = parsed.rowNames.map(n => n.trim());
 
+        if (
+          trimmedHeader.length !== expectedSize ||
+          trimmedRows.length !== expectedSize ||
+          parsed.data.length !== expectedSize ||
+          parsed.data.some(row => row.length !== expectedSize)
+        ) {
+          setError(`SAM matrix must be ${expectedSize}x${expectedSize}`);
+          return;
+        }
+
+        const trimmedExpected = expectedEntries.map(n => n.trim());
         const namesMatch =
-          trimmedHeader.length === trimmedExpected.length &&
-          trimmedRows.length === trimmedExpected.length &&
           trimmedHeader.every((n, idx) => n === trimmedExpected[idx]) &&
           trimmedRows.every((n, idx) => n === trimmedExpected[idx]);
 
@@ -74,15 +84,6 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
           setError(
             `Names must match configured entries: ${trimmedExpected.join(', ')}`
           );
-          return;
-        }
-
-        const expectedSize = trimmedExpected.length;
-        if (
-          parsed.data.length !== expectedSize ||
-          parsed.data.some(row => row.length !== expectedSize)
-        ) {
-          setError(`SAM matrix must be ${expectedSize}x${expectedSize}`);
           return;
         }
 
