@@ -246,7 +246,11 @@ def register():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    avatar = data.get('avatar', 'avatar1.svg')
+    avatar = data.get('avatar')
+    if not avatar:
+        # Generate default avatar as "<LETTER>|<COLOR>"
+        color = '#%06x' % random.randint(0, 0xFFFFFF)
+        avatar = f"{username[0].upper()}|{color}"
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
     try:

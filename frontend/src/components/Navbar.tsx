@@ -87,11 +87,17 @@ const Navbar = () => {
                   className="font-bold text-blue-800 flex items-center focus:outline-none"
                 >
                   {avatar && (
-                    <img
-                      src={`/avatars/${avatar}`}
-                      alt="avatar"
-                      className="w-8 h-8 rounded-full mr-2"
-                    />
+                    (() => {
+                      const [letter, color] = avatar.split('|');
+                      return (
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-2"
+                          style={{ backgroundColor: color }}
+                        >
+                          {letter}
+                        </div>
+                      );
+                    })()
                   )}
                   {username}
                   <svg

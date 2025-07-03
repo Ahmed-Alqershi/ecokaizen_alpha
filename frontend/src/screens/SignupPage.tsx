@@ -6,14 +6,17 @@ const SignupPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState('avatar1.svg');
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await registerUser(username, password, selectedAvatar);
+      const color = `#${Math.floor(Math.random() * 0xffffff)
+        .toString(16)
+        .padStart(6, '0')}`;
+      const avatar = `${username.charAt(0).toUpperCase()}|${color}`;
+      await registerUser(username, password, avatar);
       navigate('/login');
     } catch (err: any) {
       setError(err?.error || 'Signup failed');
@@ -25,17 +28,6 @@ const SignupPage = () => {
       <h2 className="text-2xl font-bold text-center mb-6">Sign Up</h2>
       {error && <p className="text-warning mb-4 text-center">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex justify-center space-x-2">
-          {['avatar1.svg','avatar2.svg','avatar3.svg','avatar4.svg','avatar5.svg'].map((av) => (
-            <img
-              key={av}
-              src={`/avatars/${av}`}
-              alt={av}
-              onClick={() => setSelectedAvatar(av)}
-              className={`w-12 h-12 rounded-full cursor-pointer border-2 ${selectedAvatar === av ? 'border-primary' : 'border-transparent'}`}
-            />
-          ))}
-        </div>
         <input
           type="text"
           className="input w-full"
