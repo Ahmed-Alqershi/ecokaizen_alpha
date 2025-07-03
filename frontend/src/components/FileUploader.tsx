@@ -71,7 +71,7 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
           parsed.data.length !== expectedSize ||
           parsed.data.some(row => row.length !== expectedSize)
         ) {
-          setError(`SAM matrix must be ${expectedSize}x${expectedSize}`);
+          setError(`SAM matrix must be ${expectedSize}x${expectedSize}. See below:`);
           return;
         }
 
