@@ -60,28 +60,30 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
 
       if (parsed) {
         const expectedEntries = [...goods, ...factors, ...households];
-        const headerSet = new Set(parsed.columnNames.map(n => n.trim()));
-        const rowSet = new Set(parsed.rowNames.map(n => n.trim()));
-        const expectedSet = new Set(expectedEntries.map(n => n.trim()));
-
-        let finalData = parsed.data;
-        let showWarning = false;
+        const trimmedExpected = expectedEntries.map(n => n.trim());
+        const trimmedHeader = parsed.columnNames.map(n => n.trim());
+        const trimmedRows = parsed.rowNames.map(n => n.trim());
 
         const namesMatch =
-          headerSet.size === expectedSet.size &&
-          rowSet.size === expectedSet.size &&
-          [...expectedSet].every(n => headerSet.has(n) && rowSet.has(n));
+          trimmedHeader.length === trimmedExpected.length &&
+          trimmedRows.length === trimmedExpected.length &&
+          trimmedHeader.every((n, idx) => n === trimmedExpected[idx]) &&
+          trimmedRows.every((n, idx) => n === trimmedExpected[idx]);
 
-        if (namesMatch) {
-          const rowIndex = new Map(parsed.rowNames.map((n, i) => [n.trim(), i]));
-          const colIndex = new Map(parsed.columnNames.map((n, i) => [n.trim(), i]));
+        if (!namesMatch) {
+          setError(
+            `Names must match configured entries: ${trimmedExpected.join(', ')}`
+          );
+          return;
+        }
 
-          finalData = expectedEntries.map(rowName => {
-            const r = parsed.data[rowIndex.get(rowName)!];
-            return expectedEntries.map(colName => r[colIndex.get(colName)!]);
-          });
-        } else {
-          showWarning = true;
+        const expectedSize = trimmedExpected.length;
+        if (
+          parsed.data.length !== expectedSize ||
+          parsed.data.some(row => row.length !== expectedSize)
+        ) {
+          setError(`SAM matrix must be ${expectedSize}x${expectedSize}`);
+          return;
         }
 
         const sam: SAM = {
@@ -89,15 +91,10 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
           goods,
           factors,
           households,
-          data: finalData,
+          data: parsed.data,
         };
 
-        if (showWarning) {
-          setWarning('Uploaded names do not match the configured names. Using configured names instead.');
-        } else {
-          setWarning(null);
-        }
-
+        setWarning(null);
         onSamLoaded(sam);
       } else {
         setError('Failed to parse the SAM data. Please check the file format.');
