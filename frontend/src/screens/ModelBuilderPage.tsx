@@ -796,6 +796,16 @@ const ModelBuilderPage = () => {
                   onChange={handleParameterChange}
                 />
               </div>
+
+              {!samValid && (
+                <div className="mb-6 p-4 bg-warning/10 border border-warning/50 rounded-md">
+                  <div className="text-warning font-medium mb-1">SAM Validation</div>
+                  <div className="text-warning/90 whitespace-pre-wrap">
+                    {samValidationMessage ||
+                      'The SAM matrix is not balanced. Each row total must equal the corresponding column total.'}
+                  </div>
+                </div>
+              )}
             </>
           )}
           
