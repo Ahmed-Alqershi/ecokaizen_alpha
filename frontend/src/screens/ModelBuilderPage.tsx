@@ -785,6 +785,11 @@ const ModelBuilderPage = () => {
                     </div>
                   </div>
                   <SAMTable sam={samData} onChange={setSamData} />
+                  {!samValid && (
+                    <div className="mt-4 p-2 bg-warning/10 border border-warning/50 rounded-md text-warning">
+                      {samValidationMessage || 'The SAM matrix is not balanced.'}
+                    </div>
+                  )}
                 </div>
               </div>
 
