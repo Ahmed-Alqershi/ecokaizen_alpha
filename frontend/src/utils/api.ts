@@ -117,6 +117,7 @@ export const sendContactMessage = async (
   return response.data;
 };
 
+// avatar format "<LETTER>|<COLOR>"
 export const registerUser = async (
   username: string,
   password: string,
