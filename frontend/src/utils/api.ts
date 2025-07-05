@@ -52,12 +52,14 @@ export const solveModel = async (
 };
 
 export const compareScenarios = async (
+  templateId: string,
   baselineParams: ModelParameters,
   scenarioParams: ModelParameters,
   sam?: SAM
 ): Promise<ScenarioComparison> => {
   try {
     const response = await api.post('/compare-scenarios', {
+      templateId,
       baselineParams,
       scenarioParams,
       sam,
