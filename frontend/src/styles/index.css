@@ -41,6 +41,10 @@
     @apply bg-secondary text-white hover:bg-secondary/90;
   }
 
+  .btn-gradient-outline {
+    @apply bg-white text-primary border border-primary shadow-md hover:bg-gradient-to-r hover:from-primary hover:to-secondary hover:text-white hover:border-transparent hover:shadow-lg hover:-translate-y-1 transition-all duration-300;
+  }
+
   .card {
     @apply bg-white rounded-lg shadow-md p-6;
   }
@@ -49,10 +53,6 @@
     @apply bg-white rounded-lg shadow-md p-6 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:bg-primary/5;
   }
 
-  /* Utility to invert colors on hover */
-  .hover-invert:hover {
-    filter: invert(1);
-  }
 
   .input {
     @apply border border-midgray rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
