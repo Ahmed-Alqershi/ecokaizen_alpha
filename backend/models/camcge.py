@@ -1,18 +1,24 @@
+import os
 import numpy as np
 import pandas as pd
 from gamspy import Container, Set, Alias, Parameter, Variable, Equation, Model, Sum, Product, Number
 from gamspy.math import sign
 
+# Resolve the path to the Excel data file regardless of the current
+# working directory.  This ensures the model can be executed from the
+# project root or the backend folder without errors.
+DATA_PATH = os.path.join(os.path.dirname(__file__), "camcge_data.xlsx")
+
 
 class data:
     """Data class for the CAM-CGE model."""
-    sectors = pd.read_excel("camcge_data.xlsx", sheet_name="i", header=0, index_col=None).columns.tolist()
-    labor_cats = pd.read_excel("camcge_data.xlsx", sheet_name="lc", header=0, index_col=None).columns.tolist()
-    input_output_coeffs = pd.read_excel("camcge_data.xlsx", sheet_name="io", header=0, index_col=0).fillna(0).T.unstack()
-    capital_comp_matrix = pd.read_excel("camcge_data.xlsx", sheet_name="imat", header=0, index_col=0).fillna(0).T.unstack()
-    misc_pars = pd.read_excel("camcge_data.xlsx", sheet_name="zz", header=0, index_col=0).fillna(0).T.unstack()
-    wage_factors = pd.read_excel("camcge_data.xlsx", sheet_name="wdist", header=0, index_col=0).fillna(0).T.unstack()
-    employment_per_sector = pd.read_excel("camcge_data.xlsx", sheet_name="xle", header=0, index_col=0).fillna(0).T.unstack()
+    sectors = pd.read_excel(DATA_PATH, sheet_name="i", header=0, index_col=None).columns.tolist()
+    labor_cats = pd.read_excel(DATA_PATH, sheet_name="lc", header=0, index_col=None).columns.tolist()
+    input_output_coeffs = pd.read_excel(DATA_PATH, sheet_name="io", header=0, index_col=0).fillna(0).T.unstack()
+    capital_comp_matrix = pd.read_excel(DATA_PATH, sheet_name="imat", header=0, index_col=0).fillna(0).T.unstack()
+    misc_pars = pd.read_excel(DATA_PATH, sheet_name="zz", header=0, index_col=0).fillna(0).T.unstack()
+    wage_factors = pd.read_excel(DATA_PATH, sheet_name="wdist", header=0, index_col=0).fillna(0).T.unstack()
+    employment_per_sector = pd.read_excel(DATA_PATH, sheet_name="xle", header=0, index_col=0).fillna(0).T.unstack()
 
 
 

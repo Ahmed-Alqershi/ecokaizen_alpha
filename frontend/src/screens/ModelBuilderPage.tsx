@@ -10,6 +10,7 @@ import templates from '../utils/templateData';
 import {
   generateDefaultSam,
   generateEmptySam,
+  generateKoreaSam,
   validateSam,
   exportSamToCsv,
   exportSamToExcel,
@@ -64,7 +65,7 @@ const ModelBuilderPage = () => {
   // Reset when template changes
   useEffect(() => {
     if (selectedTemplate) {
-      // For now, in the MVP we only support the Simple CGE model
+      // Initialize defaults for known templates
       if (selectedTemplate.id === 'simple-cge') {
         setSamData(generateDefaultSam());
         setModelParameters({
@@ -78,6 +79,15 @@ const ModelBuilderPage = () => {
         setFactorNames(['FACTOR1', 'FACTOR2']);
         setHouseholdNames(['HH1']);
         setUseCustomNames(false);
+      } else if (selectedTemplate.id === 'korea-cge') {
+        setSamData(generateKoreaSam());
+        setModelParameters({
+          alpha: [],
+          b: [],
+          tariff: [],
+          indirectTax: [],
+          incomeTax: []
+        });
       }
       
       setUseCustomModel(null);
@@ -798,6 +808,7 @@ const ModelBuilderPage = () => {
                 <ParameterInputs
                   initialParams={modelParameters}
                   sam={samData}
+                  templateId={selectedTemplate?.id || 'simple-cge'}
                   onChange={handleParameterChange}
                 />
               </div>
@@ -891,6 +902,7 @@ const ModelBuilderPage = () => {
             <ParameterInputs
               initialParams={scenarioParameters}
               sam={samData}
+              templateId={selectedTemplate?.id || 'simple-cge'}
               onChange={handleScenarioParameterChange}
             />
           </div>

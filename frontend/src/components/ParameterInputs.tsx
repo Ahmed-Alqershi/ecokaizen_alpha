@@ -4,12 +4,16 @@ import { ModelParameters, SAM } from '../utils/types';
 interface ParameterInputsProps {
   initialParams?: Partial<ModelParameters>;
   sam: SAM;
+  templateId: string;
   onChange: (params: ModelParameters) => void;
 }
 
-const ParameterInputs = ({ initialParams, sam, onChange }: ParameterInputsProps) => {
+const ParameterInputs = ({ initialParams, sam, templateId, onChange }: ParameterInputsProps) => {
   const [alphaValues, setAlphaValues] = useState<number[]>([]);
   const [bValues, setBValues] = useState<number[]>([]);
+  const [tariffValues, setTariffValues] = useState<number[]>([]);
+  const [indirectValues, setIndirectValues] = useState<number[]>([]);
+  const [incomeValues, setIncomeValues] = useState<number[]>([]);
   
   // For debugging
   useEffect(() => {
@@ -24,37 +28,52 @@ const ParameterInputs = ({ initialParams, sam, onChange }: ParameterInputsProps)
   useEffect(() => {
     if (sam.goods.length > 0) {
       // Initialize alpha values (utility function coefficients for each good)
-      const defaultAlpha = sam.goods.map((_, index) => 
-        initialParams?.alpha?.[index] !== undefined 
+      const defaultAlpha = sam.goods.map((_, index) =>
+        initialParams?.alpha?.[index] !== undefined
           ? initialParams.alpha[index]
           : 1 / sam.goods.length
       );
       setAlphaValues(defaultAlpha);
-      
+
       // Initialize b values (production function scale parameters)
-      const defaultB = sam.goods.map((_, index) => 
+      const defaultB = sam.goods.map((_, index) =>
         initialParams?.b?.[index] !== undefined
           ? initialParams.b[index]
           : 1.0
       );
       setBValues(defaultB);
-      
+
+      if (templateId === 'korea-cge') {
+        const defTariff = sam.goods.map((_, i) => initialParams?.tariff?.[i] ?? 0);
+        const defIndirect = sam.goods.map((_, i) => initialParams?.indirectTax?.[i] ?? 0);
+        setTariffValues(defTariff);
+        setIndirectValues(defIndirect);
+        const defIncome = sam.households.map((_, i) => initialParams?.incomeTax?.[i] ?? 0);
+        setIncomeValues(defIncome);
+      }
+
       console.log('ParameterInputs - Initial values:', {
         alpha: defaultAlpha,
         b: defaultB
       });
     }
-  }, [sam.goods.length, initialParams]);
+  }, [sam.goods.length, sam.households.length, initialParams, templateId]);
 
   // When values change, call the onChange handler
   useEffect(() => {
     if (alphaValues.length > 0 && bValues.length > 0) {
-      onChange({
+      const params: ModelParameters = {
         alpha: alphaValues,
         b: bValues
-      });
+      };
+      if (templateId === 'korea-cge') {
+        params.tariff = tariffValues;
+        params.indirectTax = indirectValues;
+        params.incomeTax = incomeValues;
+      }
+      onChange(params);
     }
-  }, [alphaValues, bValues, onChange]);
+  }, [alphaValues, bValues, tariffValues, indirectValues, incomeValues, templateId, onChange]);
 
   const handleAlphaChange = (index: number, value: number) => {
     const newValues = [...alphaValues];
@@ -115,7 +134,7 @@ const ParameterInputs = ({ initialParams, sam, onChange }: ParameterInputsProps)
         <p className="text-sm text-darkgray/70 mb-4">
           B values are scaling factors in the production functions for each sector.
         </p>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {sam.goods.map((good, index) => (
             <div key={`b-${index}`} className="flex flex-col">
@@ -133,6 +152,67 @@ const ParameterInputs = ({ initialParams, sam, onChange }: ParameterInputsProps)
             </div>
           ))}
         </div>
+
+        {templateId === 'korea-cge' && (
+          <div className="mt-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {sam.goods.map((sector, idx) => (
+                <div key={`tar-${idx}`} className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">{sector} Tariff</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={tariffValues[idx] || 0}
+                    onChange={(e) => {
+                      const v = [...tariffValues];
+                      v[idx] = parseFloat(e.target.value) || 0;
+                      setTariffValues(v);
+                    }}
+                    className="input"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {sam.goods.map((sector, idx) => (
+                <div key={`ind-${idx}`} className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">{sector} Indirect Tax</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={indirectValues[idx] || 0}
+                    onChange={(e) => {
+                      const v = [...indirectValues];
+                      v[idx] = parseFloat(e.target.value) || 0;
+                      setIndirectValues(v);
+                    }}
+                    className="input"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {sam.households.map((hh, idx) => (
+                <div key={`inc-${idx}`} className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">{hh} Income Tax</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={incomeValues[idx] || 0}
+                    onChange={(e) => {
+                      const v = [...incomeValues];
+                      v[idx] = parseFloat(e.target.value) || 0;
+                      setIncomeValues(v);
+                    }}
+                    className="input"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
