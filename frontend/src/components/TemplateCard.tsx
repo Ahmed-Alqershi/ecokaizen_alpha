@@ -27,7 +27,7 @@ const TemplateCard = ({ template, onSelect, isSelected, delay = 0 }: TemplateCar
 
   return (
     <div
-      className={`card transition-all duration-300 h-full flex flex-col ${
+      className={`card transition-all duration-300 h-full flex flex-col opacity-0 ${
         isSelected
           ? 'border-2 border-primary ring-2 ring-primary/30 transform scale-[1.02]'
           : 'hover:shadow-lg border border-midgray/20'
