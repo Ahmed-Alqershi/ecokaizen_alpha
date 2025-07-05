@@ -411,6 +411,7 @@ const ModelBuilderPage = () => {
       // Call the API to compare scenarios
       const templateId = selectedTemplate?.id || 'simple-cge';
       const results = await compareScenarios(
+        templateId,
         modelParameters,
         scenarioParameters,
         isCustomSam ? samData : undefined
