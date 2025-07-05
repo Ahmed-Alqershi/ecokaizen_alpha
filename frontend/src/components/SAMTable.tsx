@@ -180,6 +180,13 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
     }, 100);
   };
 
+  // Ensure columns fit whenever the grid size changes
+  const onGridSizeChanged = useCallback(() => {
+    if (gridApi) {
+      gridApi.sizeColumnsToFit();
+    }
+  }, [gridApi]);
+
   // Log SAM data when it changes
   useEffect(() => {
     console.log('SAM data changed in SAMTable:', {
@@ -216,6 +223,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
             onCellValueChanged={onCellValueChanged}
             suppressMovableColumns={true}
             onGridReady={onGridReady}
+            onGridSizeChanged={onGridSizeChanged}
             defaultColDef={{
               resizable: true,
               sortable: false,
