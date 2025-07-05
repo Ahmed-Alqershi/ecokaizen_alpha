@@ -43,6 +43,14 @@ export interface ModelResults {
   };
   utility: number;
   gdp: number;
+  financials?: {
+    [key: string]: number;
+  };
+  params?: {
+    tariff?: number[];
+    indirectTax?: number[];
+    incomeTax?: number[];
+  };
 }
 
 // Scenario Comparison
@@ -57,6 +65,12 @@ export interface ScenarioComparison {
       };
     };
     production: {
+      [key: string]: {
+        value: number;
+        percentChange: number;
+      };
+    };
+    financials?: {
       [key: string]: {
         value: number;
         percentChange: number;

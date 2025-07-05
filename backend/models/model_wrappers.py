@@ -5,24 +5,41 @@ from . import camcge, korcge, saudicge
 
 
 def _extract_results(container) -> Dict[str, float]:
-    """Extract common result metrics from a solved container."""
-    prices = container["px"].toDict()
-    production = container["xd"].toDict()
-    utility_var = container["omega"]
+    """Extract key results from a solved container."""
+    prices = container["px"].toDict() if "px" in container else {}
+    production = container["xd"].toDict() if "xd" in container else {}
+
+    utility_var = container.get("omega")
     utility = float(utility_var.toValue()) if utility_var is not None else 0.0
 
-    if "pva" in container and "xd" in container:
-        pva = container["pva"].toDict()
-        xd_vals = container["xd"].toDict()
-        gdp = sum(pva[s] * xd_vals.get(s, 0) for s in pva)
-    else:
-        gdp = sum(production.values())
+    # According to model specifications GDP equals the objective function value
+    gdp = utility
+
+    financials = {}
+    for var in [
+        "gr",
+        "tariff",
+        "indtax",
+        "netsub",
+        "invest",
+        "govsav",
+        "hhsav",
+        "fsav",
+        "fbor",
+        "tothhtax",
+    ]:
+        if var in container:
+            try:
+                financials[var] = float(container[var].toValue())
+            except Exception:
+                pass
 
     return {
         "prices": prices,
         "production": production,
         "utility": utility,
-        "gdp": float(gdp),
+        "gdp": gdp,
+        "financials": financials,
     }
 
 
@@ -41,6 +58,12 @@ def solve_korea(
     """Run the Korea CGE model with optional policy parameters."""
     mod = importlib.reload(korcge)
 
+    defaults = {
+        "tariff": [float(mod.tm[s]) for s in mod.data.sectors],
+        "indirectTax": [float(mod.itax[s]) for s in mod.data.sectors],
+        "incomeTax": [float(mod.htax[h]) for h in mod.data.households],
+    }
+
     if tariff is not None:
         for sec, val in zip(mod.data.sectors, tariff):
             mod.tm[sec] = float(val)
@@ -52,7 +75,9 @@ def solve_korea(
             mod.htax[hh] = float(val)
 
     mod.model1.solve(solver="CONOPT")
-    return _extract_results(mod.m)
+    results = _extract_results(mod.m)
+    results["params"] = defaults
+    return results
 
 
 def solve_saudi(
@@ -63,6 +88,11 @@ def solve_saudi(
     """Run the Saudi CGE model with optional policy parameters."""
     mod = importlib.reload(saudicge)
 
+    defaults = {
+        "tariff": [float(mod.tm[s]) for s in mod.data.sectors],
+        "indirectTax": [float(mod.itax[s]) for s in mod.data.sectors],
+        "incomeTax": [float(mod.htax[h]) for h in mod.data.households],
+    }
     if tariff is not None:
         for sec, val in zip(mod.data.sectors, tariff):
             mod.tm[sec] = float(val)
@@ -74,4 +104,6 @@ def solve_saudi(
             mod.htax[hh] = float(val)
 
     mod.model1.solve(solver="CONOPT")
-    return _extract_results(mod.m)
+    results = _extract_results(mod.m)
+    results["params"] = defaults
+    return results

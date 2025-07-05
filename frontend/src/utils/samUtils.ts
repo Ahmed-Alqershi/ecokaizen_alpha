@@ -167,10 +167,10 @@ export const generateKoreaSam = (): SAM => {
 export const generateSaudiSam = (): SAM => {
   return generateEmptySam(
     3,
-    4,
+    2,
     2,
     ['agricult', 'oilgas', 'tourism'],
-    ['CAP', 'saudi', 'unskilled-expat', 'skilled-expat'],
+    ['CAP', 'LAB'],
     ['saudi-hh', 'expat-hh']
   );
 };

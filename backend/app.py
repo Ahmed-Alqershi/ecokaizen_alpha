@@ -262,8 +262,9 @@ def solve_model():
                 from models.model_wrappers import solve_saudi
                 results = solve_saudi()
                 return jsonify(results)
-            except Exception as sa_error:
-                error_message = f"Error solving Saudi model: {sa_error}"
+
+            except Exception as sau_error:
+                error_message = f"Error solving Saudi model: {sau_error}"
                 stack_trace = traceback.format_exc()
                 print(error_message)
                 print(stack_trace)
@@ -384,6 +385,7 @@ def compare_scenarios():
 
                 price_diffs = diff_dict(baseline_results['prices'], scenario_results['prices'])
                 prod_diffs = diff_dict(baseline_results['production'], scenario_results['production'])
+                fin_diffs = diff_dict(baseline_results['financials'], scenario_results['financials'])
 
                 util_diff = scenario_results['utility'] - baseline_results['utility']
                 util_pct = (util_diff / baseline_results['utility'] * 100) if baseline_results['utility'] else 0
@@ -397,6 +399,7 @@ def compare_scenarios():
                     'differences': {
                         'prices': price_diffs,
                         'production': prod_diffs,
+                        'financials': fin_diffs,
                         'utility': {'value': util_diff, 'percentChange': util_pct},
                         'gdp': {'value': gdp_diff, 'percentChange': gdp_pct},
                     }
@@ -432,12 +435,7 @@ def compare_scenarios():
                         d[k] = {'value': val, 'percentChange': pct}
                     return d
 
-                price_diffs = diff_dict(baseline_results['prices'], scenario_results['prices'])
-                prod_diffs = diff_dict(baseline_results['production'], scenario_results['production'])
-
-                util_diff = scenario_results['utility'] - baseline_results['utility']
-                util_pct = (util_diff / baseline_results['utility'] * 100) if baseline_results['utility'] else 0
-
+                fin_diffs = diff_dict(baseline_results['financials'], scenario_results['financials'])
                 gdp_diff = scenario_results['gdp'] - baseline_results['gdp']
                 gdp_pct = (gdp_diff / baseline_results['gdp'] * 100) if baseline_results['gdp'] else 0
 
@@ -445,14 +443,12 @@ def compare_scenarios():
                     'baseline': baseline_results,
                     'scenario': scenario_results,
                     'differences': {
-                        'prices': price_diffs,
-                        'production': prod_diffs,
-                        'utility': {'value': util_diff, 'percentChange': util_pct},
+                        'financials': fin_diffs,
                         'gdp': {'value': gdp_diff, 'percentChange': gdp_pct},
                     }
                 })
-            except Exception as sa_err:
-                error_message = f"Error comparing Saudi scenarios: {sa_err}"
+            except Exception as sau_err:
+                error_message = f"Error comparing Saudi scenarios: {sau_err}"
                 stack_trace = traceback.format_exc()
                 print(error_message)
                 print(stack_trace)
