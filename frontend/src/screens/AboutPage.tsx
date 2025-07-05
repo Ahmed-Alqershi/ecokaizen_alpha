@@ -6,13 +6,20 @@ const AboutPage = () => {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-12">
       <div className="space-y-4 animate-fadeInUp">
         <div className="flex items-center space-x-3">
-          <img src={logo} alt="Kaizen logo" className="w-12 h-12" />
           <h1 className="text-3xl font-bold">About Kaizen</h1>
+          <img src={logo} alt="Kaizen logo" className="w-12 h-12" />
         </div>
         <p className="text-darkgray/80">
           Kaizen builds software that bridges the gap between advanced economic models and real-world decision
           making. Our platform delivers professional tools for constructing Computable General Equilibrium (CGE)
           models through an intuitive interface and interactive visualizations.
+        </p>
+        <p>
+          Learn more at{' '}
+          <a className="text-primary" href="https://kaizen.sa/" target="_blank" rel="noopener noreferrer">
+            kaizen.sa
+          </a>
+          .
         </p>
       </div>
       <section className="space-y-4 animate-fadeInUp">
