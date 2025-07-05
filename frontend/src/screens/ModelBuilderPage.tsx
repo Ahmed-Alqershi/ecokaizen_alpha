@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TemplateCard from '../components/TemplateCard';
 import SAMTable from '../components/SAMTable';
 import ParameterInputs from '../components/ParameterInputs';
@@ -331,14 +331,16 @@ const ModelBuilderPage = () => {
   };
   
   // Handle parameter changes
-  const handleParameterChange = (params: ModelParameters) => {
-    setModelParameters(params);
-  };
-  
+  const handleParameterChange = useCallback(
+    (params: ModelParameters) => setModelParameters(params),
+    []
+  );
+
   // Handle scenario parameter changes
-  const handleScenarioParameterChange = (params: ModelParameters) => {
-    setScenarioParameters(params);
-  };
+  const handleScenarioParameterChange = useCallback(
+    (params: ModelParameters) => setScenarioParameters(params),
+    []
+  );
   
   // Solve the model
   const handleSolveModel = async () => {
