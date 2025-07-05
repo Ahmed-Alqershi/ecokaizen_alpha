@@ -40,7 +40,7 @@ If you’re looking to analyze real-world policy issues like tariffs, tax change
 
 ---
 
-## 3. 🌍 Cameroon CGE Model (Detailed Sectoral Model for a Developing Economy)
+## 3. 🇨🇲 Cameroon CGE Model (Detailed Sectoral Model for a Developing Economy)
 
 **Best for:** Sectoral studies, development planning, researchers working on African economies
 

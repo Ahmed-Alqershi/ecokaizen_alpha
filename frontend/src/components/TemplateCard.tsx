@@ -17,7 +17,7 @@ const TemplateCard = ({ template, onSelect, isSelected, delay = 0 }: TemplateCar
       case 'standard':
         return '📊';
       case 'cameroon':
-        return '🌍';
+        return '🇨🇲';
       case 'korea':
         return '🇰🇷';
       default:
