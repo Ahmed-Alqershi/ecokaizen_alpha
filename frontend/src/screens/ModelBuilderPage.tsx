@@ -37,7 +37,8 @@ const ModelBuilderPage = () => {
   const [useCustomNames, setUseCustomNames] = useState<boolean>(false);
   
   // SAM data
-  const [samData, setSamData] = useState<SAM>(generateDefaultSam());
+  // Use functional initializer so the default SAM is generated only once
+  const [samData, setSamData] = useState<SAM>(() => generateDefaultSam());
   const [isCustomSam, setIsCustomSam] = useState<boolean>(false);
   const [samConfigured, setSamConfigured] = useState<boolean>(false);
   const [samValid, setSamValid] = useState<boolean>(true);
