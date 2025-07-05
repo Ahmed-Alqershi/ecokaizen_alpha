@@ -1,57 +1,49 @@
 import React from 'react';
-import ibrahimImg from '../../static/ibrahim.jpg';
-import almaenImg from '../../static/almaen.jpg';
-import ahmedImg from '../../static/ahmed.jpg';
+import logo from '../../static/logo.png';
 
 const AboutPage = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-12">
       <div className="space-y-4 animate-fadeInUp">
-        <h1 className="text-3xl font-bold">About Us</h1>
+        <div className="flex items-center space-x-3">
+          <img src={logo} alt="Kaizen logo" className="w-12 h-12" />
+          <h1 className="text-3xl font-bold">About Kaizen</h1>
+        </div>
         <p className="text-darkgray/80">
-          Kaizen is a pioneering platform dedicated to making complex economic modeling accessible
-          through intuitive interfaces and powerful visualizations. We believe that economic insights
-          should be available to everyone, not just technical specialists.
+          Kaizen builds software that bridges the gap between advanced economic models and real-world decision
+          making. Our platform delivers professional tools for constructing Computable General Equilibrium (CGE)
+          models through an intuitive interface and interactive visualizations.
         </p>
       </div>
       <section className="space-y-4 animate-fadeInUp">
         <h2 className="text-2xl font-bold">Our Mission</h2>
         <p>
-          Our mission is to democratize access to economic modeling tools by creating
-          user-friendly interfaces for Computable General Equilibrium (CGE) models that
-          provide valuable insights for policymakers, researchers, and educational institutions.
+          We democratize access to economic modeling tools by creating intuitive workflows for Computable General
+          Equilibrium (CGE) models. Our solutions help policymakers and researchers gain actionable insights from
+          complex data without steep technical barriers.
         </p>
       </section>
-      <section className="space-y-6 animate-fadeInUp">
-        <h2 className="text-2xl font-bold">Our Team</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="card text-center space-y-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg">
-            <img src={ibrahimImg} alt="Dr. Ibrahim Aljarrah" className="w-full rounded-md" />
-            <h3>Dr. Ibrahim Aljarrah</h3>
-            <p className="text-sm">Founder &amp; Lead Economist</p>
-            <p className="text-sm">PhD in Economic Modeling with 15+ years of experience in CGE model development.</p>
-          </div>
-          <div className="card text-center space-y-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg">
-            <img src={almaenImg} alt="Almaen Salah" className="w-full rounded-md" />
-            <h3>Almaen Salah</h3>
-            <p className="text-sm">Chief Technology Officer</p>
-            <p className="text-sm">Expert in computational methods and visualization of economic data.</p>
-          </div>
-          <div className="card text-center space-y-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg">
-            <img src={ahmedImg} alt="Ahmed Alqershi" className="w-full rounded-md" />
-            <h3>Ahmed Alqershi</h3>
-            <p className="text-sm">Lead Developer</p>
-            <p className="text-sm">Specializes in creating interactive web applications for complex data.</p>
-          </div>
-        </div>
+      <section className="space-y-4 animate-fadeInUp">
+        <h2 className="text-2xl font-bold">What We Offer</h2>
+        <ul className="list-disc list-inside space-y-2">
+          <li>Ready-to-use templates covering various economic structures</li>
+          <li>Customizable SAM editors and parameter inputs</li>
+          <li>Clear visualizations for scenario analysis</li>
+          <li>Expert support and training services</li>
+        </ul>
       </section>
       <section className="space-y-4 animate-fadeInUp">
         <h2 className="text-2xl font-bold">Our Partners</h2>
-        <p>We collaborate with leading research institutions, universities, and government agencies.</p>
+        <p>
+          We collaborate with leading universities, research centers and government agencies around the world.
+          Together we advance the practice of applied economic modeling.
+        </p>
       </section>
       <section className="space-y-4 animate-fadeInUp">
-        <h2 className="text-2xl font-bold">Contact Us</h2>
-        <p>Email: <a className="text-primary" href="mailto:aalqershi@kaizen.sa">aalqershi@kaizen.sa</a></p>
+        <h2 className="text-2xl font-bold">Get in Touch</h2>
+        <p>
+          Email: <a className="text-primary" href="mailto:contact@kaizen.sa">contact@kaizen.sa</a>
+        </p>
         <p>Phone: +90 (553) 919 09 67</p>
         <p>Address: ...</p>
       </section>

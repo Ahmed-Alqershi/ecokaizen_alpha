@@ -74,7 +74,7 @@ def send_contact_email(name: str, email: str, message: str):
     msg = EmailMessage()
     msg['Subject'] = 'New Contact Form Submission'
     msg['From'] = email if not smtp_user else smtp_user
-    msg['To'] = 'aalqershi@kaizen.sa'
+    msg['To'] = 'contact@kaizen.sa'
     msg.set_content(f"Name: {name}\nEmail: {email}\n\n{message}")
 
     try:
