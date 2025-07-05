@@ -49,9 +49,9 @@ const AboutPage = () => {
       <section className="space-y-4 animate-fadeInUp">
         <h2 className="text-2xl font-bold">Get in Touch</h2>
         <p>
-          Email: <a className="text-primary" href="mailto:contact@kaizen.sa">contact@kaizen.sa</a>
+          Email: <a className="text-primary" href="mailto:info@kaizen.sa">info@kaizen.sa</a>
         </p>
-        <p>Phone: +90 (553) 919 09 67</p>
+        <p>Phone: +966112495943</p>
         <p>Address: ...</p>
       </section>
     </div>
