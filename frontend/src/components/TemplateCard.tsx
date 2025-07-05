@@ -1,5 +1,6 @@
 import { ModelTemplate } from '../utils/types';
 import ReactMarkdown from 'react-markdown';
+import ReactCountryFlag from 'react-country-flag';
 
 interface TemplateCardProps {
   template: ModelTemplate;
@@ -17,9 +18,23 @@ const TemplateCard = ({ template, onSelect, isSelected, delay = 0 }: TemplateCar
       case 'standard':
         return '📊';
       case 'cameroon':
-        return '🇨🇲';
+        return (
+          <ReactCountryFlag
+            countryCode="CM"
+            svg
+            style={{ width: '1.2em', height: '1.2em' }}
+            title="Cameroon"
+          />
+        );
       case 'korea':
-        return '🇰🇷';
+        return (
+          <ReactCountryFlag
+            countryCode="KR"
+            svg
+            style={{ width: '1.2em', height: '1.2em' }}
+            title="South Korea"
+          />
+        );
       default:
         return '📄';
     }
