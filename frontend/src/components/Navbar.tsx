@@ -21,7 +21,7 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center space-x-2 text-xl font-bold text-primary">
+              <Link to="/" className="flex items-center space-x-4 text-xl font-bold text-[#214482]">
                 <img src={logo} alt="Kaizen logo" className="w-8 h-8" />
                 <span>CGE Model Builder</span>
               </Link>
