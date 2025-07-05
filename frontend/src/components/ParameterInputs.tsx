@@ -43,7 +43,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
       );
       setBValues(defaultB);
 
-      if (templateId === 'korea-cge') {
+      if (templateId === 'korea-cge' || templateId === 'saudi-cge') {
         const defTariff = sam.goods.map((_, i) => initialParams?.tariff?.[i] ?? 0);
         const defIndirect = sam.goods.map((_, i) => initialParams?.indirectTax?.[i] ?? 0);
         setTariffValues(defTariff);
@@ -68,7 +68,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
         alpha: alphaValues,
         b: bValues
       };
-      if (templateId === 'korea-cge') {
+      if (templateId === 'korea-cge' || templateId === 'saudi-cge') {
         params.tariff = tariffValues;
         params.indirectTax = indirectValues;
         params.incomeTax = incomeValues;
@@ -154,7 +154,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
           ))}
         </div>
 
-        {templateId === 'korea-cge' && (
+        {(templateId === 'korea-cge' || templateId === 'saudi-cge') && (
           <div className="mt-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {sam.goods.map((sector, idx) => (

@@ -35,6 +35,15 @@ const TemplateCard = ({ template, onSelect, isSelected, delay = 0 }: TemplateCar
             title="South Korea"
           />
         );
+      case 'saudi':
+        return (
+          <ReactCountryFlag
+            countryCode="SA"
+            svg
+            style={{ width: '1.2em', height: '1.2em' }}
+            title="Saudi Arabia"
+          />
+        );
       default:
         return '📄';
     }

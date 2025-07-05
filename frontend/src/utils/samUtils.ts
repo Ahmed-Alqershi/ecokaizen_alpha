@@ -164,6 +164,17 @@ export const generateKoreaSam = (): SAM => {
   );
 };
 
+export const generateSaudiSam = (): SAM => {
+  return generateEmptySam(
+    3,
+    4,
+    2,
+    ['agricult', 'oilgas', 'tourism'],
+    ['CAP', 'saudi', 'unskilled-expat', 'skilled-expat'],
+    ['saudi-hh', 'expat-hh']
+  );
+};
+
 export const exportSamToCsv = (sam: SAM): string => {
   const headers = sam.entries;
   const rows = sam.data.map((row, index) => {
