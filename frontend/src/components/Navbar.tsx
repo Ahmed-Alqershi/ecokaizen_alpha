@@ -86,7 +86,7 @@ const Navbar = () => {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="group font-bold text-blue-800 flex items-center focus:outline-none transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg rounded-md px-2"
+                  className="group font-bold text-blue-800 flex items-center focus:outline-none rounded-md px-2 transition-colors duration-200 hover:text-primary"
                 >
                   {avatar && (
                     (() => {
