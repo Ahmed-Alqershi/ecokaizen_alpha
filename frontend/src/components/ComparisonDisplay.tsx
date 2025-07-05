@@ -84,8 +84,8 @@ const ComparisonDisplay = ({ comparison }: ComparisonDisplayProps) => {
                 <YAxis unit="%" />
                 <Tooltip formatter={(value: number) => `${value.toFixed(2)}%`} />
                 <Legend />
-                <Bar dataKey="price" fill="#9333ea" name="Price" />
-                <Bar dataKey="production" fill="#2563eb" name="Production" />
+                <Bar dataKey="price" fill="#f97316" name="Price" />
+                <Bar dataKey="production" fill="#3b82f6" name="Production" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -105,7 +105,7 @@ const ComparisonDisplay = ({ comparison }: ComparisonDisplayProps) => {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="baseline" fill="#2563eb" name="Baseline" />
+              <Bar dataKey="baseline" fill="#3b82f6" name="Baseline" />
               <Bar dataKey="scenario" fill="#10b981" name="Scenario" />
             </BarChart>
           </ResponsiveContainer>
