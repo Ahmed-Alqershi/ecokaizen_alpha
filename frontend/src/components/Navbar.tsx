@@ -84,14 +84,14 @@ const Navbar = () => {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="font-bold text-blue-800 flex items-center focus:outline-none"
+                  className="group font-bold text-blue-800 flex items-center focus:outline-none transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg rounded-md px-2"
                 >
                   {avatar && (
                     (() => {
                       const [letter, color] = avatar.split('|');
                       return (
                         <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-2"
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-2 transition-transform duration-300 group-hover:scale-110"
                           style={{ backgroundColor: color }}
                         >
                           {letter}
