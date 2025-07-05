@@ -3,7 +3,7 @@ export interface ModelTemplate {
   id: string;
   name: string;
   shortDescription: string;
-  type: 'simple' | 'standard' | 'cameroon' | 'korea';
+  type: 'simple' | 'standard' | 'cameroon' | 'korea' | 'saudi';
   sectors: string[];
   factors: string[];
   households: string[];

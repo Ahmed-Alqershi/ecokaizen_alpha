@@ -262,6 +262,7 @@ def solve_model():
                 from models.model_wrappers import solve_saudi
                 results = solve_saudi()
                 return jsonify(results)
+
             except Exception as sau_error:
                 error_message = f"Error solving Saudi model: {sau_error}"
                 stack_trace = traceback.format_exc()

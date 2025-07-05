@@ -93,7 +93,6 @@ def solve_saudi(
         "indirectTax": [float(mod.itax[s]) for s in mod.data.sectors],
         "incomeTax": [float(mod.htax[h]) for h in mod.data.households],
     }
-
     if tariff is not None:
         for sec, val in zip(mod.data.sectors, tariff):
             mod.tm[sec] = float(val)
