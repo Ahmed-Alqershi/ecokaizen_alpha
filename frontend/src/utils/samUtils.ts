@@ -153,6 +153,17 @@ export const generateEmptySam = (
   };
 };
 
+export const generateKoreaSam = (): SAM => {
+  return generateEmptySam(
+    3,
+    2,
+    2,
+    ['AGR', 'IND', 'SVC'],
+    ['CAP', 'LAB'],
+    ['LABH', 'CAPH']
+  );
+};
+
 export const exportSamToCsv = (sam: SAM): string => {
   const headers = sam.entries;
   const rows = sam.data.map((row, index) => {

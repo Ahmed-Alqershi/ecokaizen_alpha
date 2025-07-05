@@ -1,26 +1,31 @@
+import os
 import numpy as np
 import pandas as pd
 from gamspy import Container, Set, Alias, Parameter, Variable, Equation, Model, Sum, Product, Number
 from gamspy.math import sign
 
+# Path to the Excel data used by the model.  Using an absolute path makes the
+# module independent of the current working directory.
+DATA_PATH = os.path.join(os.path.dirname(__file__), "korcge_export.xlsx")
+
 
 class data:
     """Data class for the KOR-CGE model."""
-    sectors = pd.read_excel("korcge_export.xlsx", sheet_name="i", header=None, index_col=None)[0].tolist()
-    households = pd.read_excel("korcge_export.xlsx", sheet_name="hh", header=None, index_col=None)[0].tolist()
-    labor_cats = pd.read_excel("korcge_export.xlsx", sheet_name="lc", header=None, index_col=None)[0].tolist()
-    income_tax_hh = pd.read_excel("korcge_export.xlsx", sheet_name="htax", header=None, index_col=None).to_dict()
-    labor_shares = pd.read_excel("korcge_export.xlsx", sheet_name="alphl", header=None, index_col=None).to_dict()
-    input_output_matrix = pd.read_excel("korcge_export.xlsx", sheet_name="io", header=None, index_col=None).to_dict()
-    capital_composition_matrix = pd.read_excel("korcge_export.xlsx", sheet_name="imat", header=None, index_col=None).to_dict()
-    wage_rates = pd.read_excel("korcge_export.xlsx", sheet_name="wdist", header=None, index_col=None).to_dict()
-    private_consumption_shares = pd.read_excel("korcge_export.xlsx", sheet_name="cles", header=None, index_col=None).to_dict()
-    misc_params = pd.read_excel("korcge_export.xlsx", sheet_name="zz", header=None, index_col=None).to_dict()
-    summ_mat_sect_employment = pd.read_excel("korcge_export.xlsx", sheet_name="labres1", header=None, index_col=None).to_dict()
-    summ_mat_aggrg_employment = pd.read_excel("korcge_export.xlsx", sheet_name="labres2", header=None, index_col=None).to_dict()
-    summ_mat_aggrg_employment = pd.read_excel("korcge_export.xlsx", sheet_name="labres2", header=None, index_col=None).to_dict()
-    summ_mat_hh_res = pd.read_excel("korcge_export.xlsx", sheet_name="hhres", header=None, index_col=None).to_dict()
-    summ_mat_sec_res = pd.read_excel("korcge_export.xlsx", sheet_name="sectres", header=None, index_col=None).to_dict()
+    sectors = pd.read_excel(DATA_PATH, sheet_name="i", header=None, index_col=None)[0].tolist()
+    households = pd.read_excel(DATA_PATH, sheet_name="hh", header=None, index_col=None)[0].tolist()
+    labor_cats = pd.read_excel(DATA_PATH, sheet_name="lc", header=None, index_col=None)[0].tolist()
+    income_tax_hh = pd.read_excel(DATA_PATH, sheet_name="htax", header=None, index_col=None).to_dict()
+    labor_shares = pd.read_excel(DATA_PATH, sheet_name="alphl", header=None, index_col=None).to_dict()
+    input_output_matrix = pd.read_excel(DATA_PATH, sheet_name="io", header=None, index_col=None).to_dict()
+    capital_composition_matrix = pd.read_excel(DATA_PATH, sheet_name="imat", header=None, index_col=None).to_dict()
+    wage_rates = pd.read_excel(DATA_PATH, sheet_name="wdist", header=None, index_col=None).to_dict()
+    private_consumption_shares = pd.read_excel(DATA_PATH, sheet_name="cles", header=None, index_col=None).to_dict()
+    misc_params = pd.read_excel(DATA_PATH, sheet_name="zz", header=None, index_col=None).to_dict()
+    summ_mat_sect_employment = pd.read_excel(DATA_PATH, sheet_name="labres1", header=None, index_col=None).to_dict()
+    summ_mat_aggrg_employment = pd.read_excel(DATA_PATH, sheet_name="labres2", header=None, index_col=None).to_dict()
+    summ_mat_aggrg_employment = pd.read_excel(DATA_PATH, sheet_name="labres2", header=None, index_col=None).to_dict()
+    summ_mat_hh_res = pd.read_excel(DATA_PATH, sheet_name="hhres", header=None, index_col=None).to_dict()
+    summ_mat_sec_res = pd.read_excel(DATA_PATH, sheet_name="sectres", header=None, index_col=None).to_dict()
 
 
 m = Container()

@@ -11,6 +11,7 @@ from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from models.splcge import add_input_solve
 from models.dynamic_splcge import dynamic_solve, extract_results
+from typing import Dict
 from sam_utils.generator import generate_random_sam as gen_sam
 from utils.validators import (
     RequestValidationError,
@@ -232,6 +233,30 @@ def solve_model():
                     'trace': stack_trace,
                     'details': 'There was a problem solving the default model.'
                 }), 500
+        elif template_id == 'cameroon-cge':
+            try:
+                from models.model_wrappers import solve_cameroon
+                results = solve_cameroon()
+                return jsonify(results)
+            except Exception as cam_error:
+                error_message = f"Error solving Cameroon model: {cam_error}"
+                stack_trace = traceback.format_exc()
+                print(error_message)
+                print(stack_trace)
+                return jsonify({'error': error_message, 'trace': stack_trace}), 500
+
+        elif template_id == 'korea-cge':
+            try:
+                from models.model_wrappers import solve_korea
+                results = solve_korea()
+                return jsonify(results)
+            except Exception as kor_error:
+                error_message = f"Error solving Korea model: {kor_error}"
+                stack_trace = traceback.format_exc()
+                print(error_message)
+                print(stack_trace)
+                return jsonify({'error': error_message, 'trace': stack_trace}), 500
+
         else:
             # For other templates (not implemented in MVP)
             return jsonify({
@@ -304,7 +329,7 @@ def compare_scenarios():
         except RequestValidationError as exc:
             return jsonify({'error': exc.message}), exc.status_code
 
-        template_id = 'simple-cge'  # For MVP, only simple CGE is supported
+        template_id = data.get('templateId', 'simple-cge')
         baseline_params = data.get('baselineParams', {})
         scenario_params = data.get('scenarioParams', {})
 
@@ -320,6 +345,56 @@ def compare_scenarios():
         print(f"Baseline params: {baseline_params}")
         print(f"Scenario params: {scenario_params}")
         print(f"SAM provided: {'Yes' if sam else 'No'}")
+
+        if template_id == 'korea-cge':
+            try:
+                from models.model_wrappers import solve_korea
+                baseline_tariff = baseline_params.get('tariff')
+                baseline_itax = baseline_params.get('indirectTax')
+                baseline_htax = baseline_params.get('incomeTax')
+
+                scenario_tariff = scenario_params.get('tariff')
+                scenario_itax = scenario_params.get('indirectTax')
+                scenario_htax = scenario_params.get('incomeTax')
+
+                baseline_results = solve_korea(baseline_tariff, baseline_itax, baseline_htax)
+                scenario_results = solve_korea(scenario_tariff, scenario_itax, scenario_htax)
+
+                def diff_dict(base: Dict[str, float], other: Dict[str, float]):
+                    d = {}
+                    for k in base:
+                        b = float(base[k])
+                        o = float(other.get(k, 0))
+                        val = o - b
+                        pct = (val / b * 100) if b != 0 else 0
+                        d[k] = {'value': val, 'percentChange': pct}
+                    return d
+
+                price_diffs = diff_dict(baseline_results['prices'], scenario_results['prices'])
+                prod_diffs = diff_dict(baseline_results['production'], scenario_results['production'])
+
+                util_diff = scenario_results['utility'] - baseline_results['utility']
+                util_pct = (util_diff / baseline_results['utility'] * 100) if baseline_results['utility'] else 0
+
+                gdp_diff = scenario_results['gdp'] - baseline_results['gdp']
+                gdp_pct = (gdp_diff / baseline_results['gdp'] * 100) if baseline_results['gdp'] else 0
+
+                return jsonify({
+                    'baseline': baseline_results,
+                    'scenario': scenario_results,
+                    'differences': {
+                        'prices': price_diffs,
+                        'production': prod_diffs,
+                        'utility': {'value': util_diff, 'percentChange': util_pct},
+                        'gdp': {'value': gdp_diff, 'percentChange': gdp_pct},
+                    }
+                })
+            except Exception as kor_err:
+                error_message = f"Error comparing Korea scenarios: {kor_err}"
+                stack_trace = traceback.format_exc()
+                print(error_message)
+                print(stack_trace)
+                return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         if sam:
             try:

@@ -28,6 +28,9 @@ export interface SAM {
 export interface ModelParameters {
   alpha: number[]; // share parameter in utility function
   b: number[]; // scale parameter in production function
+  tariff?: number[];
+  indirectTax?: number[];
+  incomeTax?: number[];
 }
 
 // Model Results
