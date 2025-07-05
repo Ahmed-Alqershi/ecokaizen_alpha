@@ -1,4 +1,7 @@
 import React from 'react';
+import ibrahimImg from '../../static/ibrahim.jpg';
+import almaenImg from '../../static/almaen.jpg';
+import ahmedImg from '../../static/ahmed.jpg';
 
 const AboutPage = () => {
   return (
@@ -22,20 +25,20 @@ const AboutPage = () => {
       <section className="space-y-6 animate-fadeInUp">
         <h2 className="text-2xl font-bold">Our Team</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="card text-center space-y-2">
-            <img src="https://via.placeholder.com/150" alt="Dr. Ibrahim Aljarrah" className="w-full" />
+          <div className="card text-center space-y-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg">
+            <img src={ibrahimImg} alt="Dr. Ibrahim Aljarrah" className="w-full rounded-md" />
             <h3>Dr. Ibrahim Aljarrah</h3>
             <p className="text-sm">Founder &amp; Lead Economist</p>
             <p className="text-sm">PhD in Economic Modeling with 15+ years of experience in CGE model development.</p>
           </div>
-          <div className="card text-center space-y-2">
-            <img src="https://via.placeholder.com/150" alt="Almaen Salah" className="w-full" />
+          <div className="card text-center space-y-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg">
+            <img src={almaenImg} alt="Almaen Salah" className="w-full rounded-md" />
             <h3>Almaen Salah</h3>
             <p className="text-sm">Chief Technology Officer</p>
             <p className="text-sm">Expert in computational methods and visualization of economic data.</p>
           </div>
-          <div className="card text-center space-y-2">
-            <img src="https://via.placeholder.com/150" alt="Ahmed Alqershi" className="w-full" />
+          <div className="card text-center space-y-2 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg">
+            <img src={ahmedImg} alt="Ahmed Alqershi" className="w-full rounded-md" />
             <h3>Ahmed Alqershi</h3>
             <p className="text-sm">Lead Developer</p>
             <p className="text-sm">Specializes in creating interactive web applications for complex data.</p>
