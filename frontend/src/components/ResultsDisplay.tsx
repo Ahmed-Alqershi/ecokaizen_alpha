@@ -73,7 +73,7 @@ const ResultsDisplay = ({ results, title = 'Model Results' }: ResultsDisplayProp
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="production" fill="#2563eb" name="Production" />
+              <Bar dataKey="production" fill="#3b82f6" name="Production" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -92,7 +92,7 @@ const ResultsDisplay = ({ results, title = 'Model Results' }: ResultsDisplayProp
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="price" fill="#9333ea" name="Price" />
+              <Bar dataKey="price" fill="#f97316" name="Price" />
             </BarChart>
           </ResponsiveContainer>
         </div>
