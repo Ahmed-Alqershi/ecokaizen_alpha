@@ -160,8 +160,15 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
         ...sam,
         data: newData
       });
+
+      // Resize columns so the grid stays full width after edits
+      if (gridApi) {
+        setTimeout(() => {
+          gridApi.sizeColumnsToFit();
+        }, 0);
+      }
     },
-    [sam, onChange]
+    [sam, onChange, gridApi]
   );
 
   // Store the grid API when ready
@@ -179,6 +186,22 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
       }
     }, 100);
   };
+
+  // Ensure columns fit whenever the grid size changes
+  const onGridSizeChanged = useCallback(() => {
+    if (gridApi) {
+      gridApi.sizeColumnsToFit();
+    }
+  }, [gridApi]);
+
+  // Keep grid full width whenever data changes
+  useEffect(() => {
+    if (gridApi) {
+      setTimeout(() => {
+        gridApi.sizeColumnsToFit();
+      }, 0);
+    }
+  }, [rowData, gridApi]);
 
   // Log SAM data when it changes
   useEffect(() => {
@@ -216,6 +239,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
             onCellValueChanged={onCellValueChanged}
             suppressMovableColumns={true}
             onGridReady={onGridReady}
+            onGridSizeChanged={onGridSizeChanged}
             defaultColDef={{
               resizable: true,
               sortable: false,
