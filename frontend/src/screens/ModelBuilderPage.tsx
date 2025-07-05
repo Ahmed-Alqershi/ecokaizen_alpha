@@ -212,6 +212,12 @@ const ModelBuilderPage = () => {
   // Handle customization choice
   const handleCustomizationChoice = (isCustom: boolean) => {
     console.log('Customization choice made:', isCustom);
+    if (isCustom && selectedTemplate?.id !== 'simple-cge') {
+      setError(
+        'Customization for this model is currently unavailable. This feature will be added soon.'
+      );
+      return;
+    }
     setUseCustomModel(isCustom);
     setSamConfigured(false);
 
