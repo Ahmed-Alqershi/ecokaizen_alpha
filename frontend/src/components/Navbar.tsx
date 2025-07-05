@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useContext, useState } from 'react';
+import logo from '../../static/logo.png';
 import { AuthContext } from '../contexts/AuthContext';
 
 const Navbar = () => {
@@ -20,8 +21,9 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="text-xl font-bold text-primary">
-                CGE Model Builder
+              <Link to="/" className="flex items-center space-x-2 text-xl font-bold text-primary">
+                <img src={logo} alt="Kaizen logo" className="w-8 h-8" />
+                <span>CGE Model Builder</span>
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
