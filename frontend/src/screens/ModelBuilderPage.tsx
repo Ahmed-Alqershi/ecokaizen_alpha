@@ -11,6 +11,7 @@ import {
   generateDefaultSam,
   generateEmptySam,
   generateKoreaSam,
+  generateSaudiSam,
   validateSam,
   exportSamToCsv,
   exportSamToExcel,
@@ -82,6 +83,15 @@ const ModelBuilderPage = () => {
         setUseCustomNames(false);
       } else if (selectedTemplate.id === 'korea-cge') {
         setSamData(generateKoreaSam());
+        setModelParameters({
+          alpha: [],
+          b: [],
+          tariff: [],
+          indirectTax: [],
+          incomeTax: []
+        });
+      } else if (selectedTemplate.id === 'saudi-cge') {
+        setSamData(generateSaudiSam());
         setModelParameters({
           alpha: [],
           b: [],
@@ -360,7 +370,10 @@ const ModelBuilderPage = () => {
       // Call the API to solve the model
       const templateId = selectedTemplate?.id || 'simple-cge';
       const results = await solveModel(templateId, modelParameters, isCustomSam ? samData : undefined);
-      
+
+      if (results.params) {
+        setModelParameters({ ...modelParameters, ...results.params });
+      }
       setModelResults(results);
       setCurrentStep(4);
     } catch (err) {
@@ -850,7 +863,7 @@ const ModelBuilderPage = () => {
         <div>
           <h2 className="text-2xl font-semibold mb-6">Model Results</h2>
           
-          <ResultsDisplay results={modelResults} />
+          <ResultsDisplay results={modelResults} templateId={selectedTemplate?.id} />
           
           <div className="bg-white rounded-lg shadow-sm p-6 mt-8">
             <h3 className="text-xl font-medium mb-4">What would you like to do next?</h3>

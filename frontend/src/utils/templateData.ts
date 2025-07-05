@@ -60,6 +60,21 @@ const templates: ModelTemplate[] = [
       hasInvestment: true,
       description: 'Three sectors: agriculture, industry, and services. Two household types: labor-based and capital-based income'
     }
+  },
+  {
+    id: 'saudi-cge',
+    name: 'Saudi CGE Model',
+    shortDescription: 'Energy dependent economy with expat labor considerations',
+    type: 'korea',
+    sectors: ['agricult', 'oilgas', 'tourism'],
+    factors: ['CAP', 'LAB'],
+    households: ['saudi-hh', 'expat-hh'],
+    details: {
+      hasGovernment: true,
+      hasTrade: true,
+      hasInvestment: true,
+      description: 'Three sector Saudi economy with two household types.'
+    }
   }
 ];
 

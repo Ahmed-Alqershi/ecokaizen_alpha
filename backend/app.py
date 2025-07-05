@@ -257,6 +257,18 @@ def solve_model():
                 print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
+        elif template_id == 'saudi-cge':
+            try:
+                from models.model_wrappers import solve_saudi
+                results = solve_saudi()
+                return jsonify(results)
+            except Exception as sau_error:
+                error_message = f"Error solving Saudi model: {sau_error}"
+                stack_trace = traceback.format_exc()
+                print(error_message)
+                print(stack_trace)
+                return jsonify({'error': error_message, 'trace': stack_trace}), 500
+
         else:
             # For other templates (not implemented in MVP)
             return jsonify({
@@ -372,6 +384,7 @@ def compare_scenarios():
 
                 price_diffs = diff_dict(baseline_results['prices'], scenario_results['prices'])
                 prod_diffs = diff_dict(baseline_results['production'], scenario_results['production'])
+                fin_diffs = diff_dict(baseline_results['financials'], scenario_results['financials'])
 
                 util_diff = scenario_results['utility'] - baseline_results['utility']
                 util_pct = (util_diff / baseline_results['utility'] * 100) if baseline_results['utility'] else 0
@@ -385,12 +398,56 @@ def compare_scenarios():
                     'differences': {
                         'prices': price_diffs,
                         'production': prod_diffs,
+                        'financials': fin_diffs,
                         'utility': {'value': util_diff, 'percentChange': util_pct},
                         'gdp': {'value': gdp_diff, 'percentChange': gdp_pct},
                     }
                 })
             except Exception as kor_err:
                 error_message = f"Error comparing Korea scenarios: {kor_err}"
+                stack_trace = traceback.format_exc()
+                print(error_message)
+                print(stack_trace)
+                return jsonify({'error': error_message, 'trace': stack_trace}), 500
+
+        elif template_id == 'saudi-cge':
+            try:
+                from models.model_wrappers import solve_saudi
+                baseline_tariff = baseline_params.get('tariff')
+                baseline_itax = baseline_params.get('indirectTax')
+                baseline_htax = baseline_params.get('incomeTax')
+
+                scenario_tariff = scenario_params.get('tariff')
+                scenario_itax = scenario_params.get('indirectTax')
+                scenario_htax = scenario_params.get('incomeTax')
+
+                baseline_results = solve_saudi(baseline_tariff, baseline_itax, baseline_htax)
+                scenario_results = solve_saudi(scenario_tariff, scenario_itax, scenario_htax)
+
+                def diff_dict(base: Dict[str, float], other: Dict[str, float]):
+                    d = {}
+                    for k in base:
+                        b = float(base[k])
+                        o = float(other.get(k, 0))
+                        val = o - b
+                        pct = (val / b * 100) if b != 0 else 0
+                        d[k] = {'value': val, 'percentChange': pct}
+                    return d
+
+                fin_diffs = diff_dict(baseline_results['financials'], scenario_results['financials'])
+                gdp_diff = scenario_results['gdp'] - baseline_results['gdp']
+                gdp_pct = (gdp_diff / baseline_results['gdp'] * 100) if baseline_results['gdp'] else 0
+
+                return jsonify({
+                    'baseline': baseline_results,
+                    'scenario': scenario_results,
+                    'differences': {
+                        'financials': fin_diffs,
+                        'gdp': {'value': gdp_diff, 'percentChange': gdp_pct},
+                    }
+                })
+            except Exception as sau_err:
+                error_message = f"Error comparing Saudi scenarios: {sau_err}"
                 stack_trace = traceback.format_exc()
                 print(error_message)
                 print(stack_trace)

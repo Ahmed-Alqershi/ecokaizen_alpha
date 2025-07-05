@@ -43,7 +43,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
       );
       setBValues(defaultB);
 
-      if (templateId === 'korea-cge') {
+      if (templateId === 'korea-cge' || templateId === 'saudi-cge') {
         const defTariff = sam.goods.map((_, i) => initialParams?.tariff?.[i] ?? 0);
         const defIndirect = sam.goods.map((_, i) => initialParams?.indirectTax?.[i] ?? 0);
         setTariffValues(defTariff);
@@ -68,7 +68,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
         alpha: alphaValues,
         b: bValues
       };
-      if (templateId === 'korea-cge') {
+      if (templateId === 'korea-cge' || templateId === 'saudi-cge') {
         params.tariff = tariffValues;
         params.indirectTax = indirectValues;
         params.incomeTax = incomeValues;
@@ -99,7 +99,8 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm">
-      
+
+      {templateId !== 'korea-cge' && templateId !== 'saudi-cge' && (
       <div className="mb-6">
         <h4 className="text-md font-medium mb-2">Utility Function Parameters (Alpha)</h4>
         <p className="text-sm text-darkgray/70 mb-4">
@@ -129,7 +130,9 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
           Note: Sum of Alpha values should ideally be 1.0 for proper model behavior.
         </div>
       </div>
-      
+      )}
+
+      {templateId !== 'korea-cge' && templateId !== 'saudi-cge' && (
       <div>
         <h4 className="text-md font-medium mb-2">Production Function Parameters (B)</h4>
         <p className="text-sm text-darkgray/70 mb-4">
@@ -153,67 +156,69 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
             </div>
           ))}
         </div>
+      </div>
+      )}
 
-        {templateId === 'korea-cge' && (
-          <div className="mt-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {sam.goods.map((sector, idx) => (
-                <div key={`tar-${idx}`} className="flex flex-col">
-                  <label className="text-sm font-medium mb-1">{sector} Tariff</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={tariffValues[idx] || 0}
-                    onChange={(e) => {
-                      const v = [...tariffValues];
-                      v[idx] = parseFloat(e.target.value) || 0;
-                      setTariffValues(v);
-                    }}
-                    className="input"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {sam.goods.map((sector, idx) => (
-                <div key={`ind-${idx}`} className="flex flex-col">
-                  <label className="text-sm font-medium mb-1">{sector} Indirect Tax</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={indirectValues[idx] || 0}
-                    onChange={(e) => {
-                      const v = [...indirectValues];
-                      v[idx] = parseFloat(e.target.value) || 0;
-                      setIndirectValues(v);
-                    }}
-                    className="input"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {sam.households.map((hh, idx) => (
-                <div key={`inc-${idx}`} className="flex flex-col">
-                  <label className="text-sm font-medium mb-1">{hh} Income Tax</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={incomeValues[idx] || 0}
-                    onChange={(e) => {
-                      const v = [...incomeValues];
-                      v[idx] = parseFloat(e.target.value) || 0;
-                      setIncomeValues(v);
-                    }}
-                    className="input"
-                  />
-                </div>
-              ))}
-            </div>
+      {(templateId === 'korea-cge' || templateId === 'saudi-cge') && (
+        <div className="mt-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {sam.goods.map((sector, idx) => (
+              <div key={`tar-${idx}`} className="flex flex-col">
+                <label className="text-sm font-medium mb-1">{sector} Tariff</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={tariffValues[idx] || 0}
+                  onChange={(e) => {
+                    const v = [...tariffValues];
+                    v[idx] = parseFloat(e.target.value) || 0;
+                    setTariffValues(v);
+                  }}
+                  className="input"
+                />
+              </div>
+            ))}
           </div>
-        )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {sam.goods.map((sector, idx) => (
+              <div key={`ind-${idx}`} className="flex flex-col">
+                <label className="text-sm font-medium mb-1">{sector} Indirect Tax</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={indirectValues[idx] || 0}
+                  onChange={(e) => {
+                    const v = [...indirectValues];
+                    v[idx] = parseFloat(e.target.value) || 0;
+                    setIndirectValues(v);
+                  }}
+                  className="input"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {sam.households.map((hh, idx) => (
+              <div key={`inc-${idx}`} className="flex flex-col">
+                <label className="text-sm font-medium mb-1">{hh} Income Tax</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={incomeValues[idx] || 0}
+                  onChange={(e) => {
+                    const v = [...incomeValues];
+                    v[idx] = parseFloat(e.target.value) || 0;
+                    setIncomeValues(v);
+                  }}
+                  className="input"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
