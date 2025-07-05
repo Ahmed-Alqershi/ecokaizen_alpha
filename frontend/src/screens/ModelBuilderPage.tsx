@@ -566,12 +566,13 @@ const ModelBuilderPage = () => {
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {templates.map((template) => (
+            {templates.map((template, index) => (
               <TemplateCard
                 key={template.id}
                 template={template}
                 onSelect={handleSelectTemplate}
                 isSelected={selectedTemplate?.id === template.id}
+                delay={index * 0.2}
               />
             ))}
           </div>

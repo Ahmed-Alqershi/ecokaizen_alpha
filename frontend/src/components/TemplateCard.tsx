@@ -5,9 +5,10 @@ interface TemplateCardProps {
   template: ModelTemplate;
   onSelect: (template: ModelTemplate) => void;
   isSelected: boolean;
+  delay?: number;
 }
 
-const TemplateCard = ({ template, onSelect, isSelected }: TemplateCardProps) => {
+const TemplateCard = ({ template, onSelect, isSelected, delay = 0 }: TemplateCardProps) => {
   // Get the correct icon based on template type
   const getTemplateIcon = () => {
     switch (template.type) {
@@ -25,12 +26,13 @@ const TemplateCard = ({ template, onSelect, isSelected }: TemplateCardProps) => 
   };
 
   return (
-    <div 
+    <div
       className={`card transition-all duration-300 h-full flex flex-col ${
-        isSelected 
-          ? 'border-2 border-primary ring-2 ring-primary/30 transform scale-[1.02]' 
+        isSelected
+          ? 'border-2 border-primary ring-2 ring-primary/30 transform scale-[1.02]'
           : 'hover:shadow-lg border border-midgray/20'
-      }`}
+      } animate-fadeInUp`}
+      style={{ animationDelay: `${delay}s` }}
     >
       <div className="flex items-center mb-3">
         <span className="text-2xl mr-2">{getTemplateIcon()}</span>
