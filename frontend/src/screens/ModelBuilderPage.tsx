@@ -11,6 +11,7 @@ import {
   generateDefaultSam,
   generateEmptySam,
   generateKoreaSam,
+  generateSaudiSam,
   validateSam,
   exportSamToCsv,
   exportSamToExcel,
@@ -82,6 +83,15 @@ const ModelBuilderPage = () => {
         setUseCustomNames(false);
       } else if (selectedTemplate.id === 'korea-cge') {
         setSamData(generateKoreaSam());
+        setModelParameters({
+          alpha: [],
+          b: [],
+          tariff: [],
+          indirectTax: [],
+          incomeTax: []
+        });
+      } else if (selectedTemplate.id === 'saudi-cge') {
+        setSamData(generateSaudiSam());
         setModelParameters({
           alpha: [],
           b: [],

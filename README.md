@@ -79,6 +79,7 @@ Future versions will add:
 - Standard CGE Model (with government, trade, and investment)
 - Cameroon CGE Model (11 sectors)
 - Korea CGE Model (3 sectors with multiple household types)
+- Saudi Arabia CGE Model (oil-driven economy with expat labor)
 
 ## Features
 

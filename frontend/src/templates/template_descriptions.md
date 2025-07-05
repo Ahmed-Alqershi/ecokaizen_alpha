@@ -73,6 +73,22 @@ If you're exploring themes like income inequality, structural change, or trade-d
 
 ---
 
+## 5. 🇸🇦 Saudi Arabia CGE Model (Oil-Driven Economy with Expat Labor)
+
+**Best for:** Resource-rich economies, subsidy analysis, labor market reforms
+
+**Key Features:**
+
+* Three sectors including oil and gas
+* Separate labor categories for Saudi nationals and expatriates
+* Government revenue from oil exports and domestic price subsidies
+* Tracks welfare of Saudi and expatriate households
+
+**Why choose this?**
+Ideal for studying policy changes in oil-dependent economies or the impact of migrant labor regulations.
+
+---
+
 Let your modeling goals guide your choice. If you're not sure where to start, we recommend beginning with the Simple CGE Model and gradually exploring more detailed templates as your needs evolve.
 
 > 🔧 **All templates are editable.** You can modify the number of goods, sectors, institutions, or behaviors to suit your analysis. You’re never locked into the structure of a chosen model.
