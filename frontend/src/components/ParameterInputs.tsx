@@ -57,7 +57,9 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
         b: defaultB
       });
     }
-  }, [sam.goods.length, sam.households.length, initialParams, templateId]);
+  // Note: removing `initialParams` from dependencies prevents a reinitialization
+  // loop when parent components update the parameters state.
+  }, [sam.goods.length, sam.households.length, templateId]);
 
   // When values change, call the onChange handler
   useEffect(() => {
