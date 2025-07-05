@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { loginUser } from '../utils/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import logo from '../../static/logo.png';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
@@ -23,10 +24,12 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto my-12 card">
-      <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
-      {error && <p className="text-red-600 mb-4 text-center">{error}</p>}
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="max-w-md mx-auto my-12 card text-center">
+      <img src={logo} alt="CGE Model Builder logo" className="w-32 h-32 mx-auto mb-4" />
+      <h2 className="text-2xl font-bold mb-2">Login</h2>
+      <p className="text-darkgray/70 mb-4">Access your account to continue</p>
+      {error && <p className="text-red-600 mb-4">{error}</p>}
+      <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <input
             type="text"
             className="input w-full"
