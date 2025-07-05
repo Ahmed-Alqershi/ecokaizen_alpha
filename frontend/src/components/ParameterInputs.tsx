@@ -99,7 +99,6 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm">
-      <h3 className="text-lg font-medium mb-4">Model Parameters</h3>
       
       <div className="mb-6">
         <h4 className="text-md font-medium mb-2">Utility Function Parameters (Alpha)</h4>
@@ -107,7 +106,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
           Alpha values represent consumer preferences for each good in the utility function.
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {sam.goods.map((good, index) => (
             <div key={`alpha-${index}`} className="flex flex-col">
               <label className="text-sm font-medium mb-1">
@@ -137,7 +136,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
           B values are scaling factors in the production functions for each sector.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {sam.goods.map((good, index) => (
             <div key={`b-${index}`} className="flex flex-col">
               <label className="text-sm font-medium mb-1">
@@ -157,7 +156,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
 
         {templateId === 'korea-cge' && (
           <div className="mt-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {sam.goods.map((sector, idx) => (
                 <div key={`tar-${idx}`} className="flex flex-col">
                   <label className="text-sm font-medium mb-1">{sector} Tariff</label>
@@ -176,7 +175,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
               ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {sam.goods.map((sector, idx) => (
                 <div key={`ind-${idx}`} className="flex flex-col">
                   <label className="text-sm font-medium mb-1">{sector} Indirect Tax</label>
@@ -195,7 +194,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
               ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {sam.households.map((hh, idx) => (
                 <div key={`inc-${idx}`} className="flex flex-col">
                   <label className="text-sm font-medium mb-1">{hh} Income Tax</label>
