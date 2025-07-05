@@ -7,8 +7,8 @@ from . import camcge, korcge
 def _extract_results(container) -> Dict[str, float]:
     """Extract common result metrics from a solved container."""
     prices = container["px"].toDict()
-    production = container.get("xd", container.get("Z")).toDict()
-    utility_var = container.get("omega", container.get("UU"))
+    production = container["xd"].toDict()
+    utility_var = container["omega"]
     utility = float(utility_var.toValue()) if utility_var is not None else 0.0
 
     if "pva" in container and "xd" in container:
