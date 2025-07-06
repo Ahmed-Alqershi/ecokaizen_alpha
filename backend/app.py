@@ -381,7 +381,7 @@ def compare_scenarios():
                 diffs = {
                     'omega': diff_val(baseline_results['omega'], scenario_results['omega']),
                     'y': diff_val(baseline_results['y'], scenario_results['y']),
-                    'tothhtax': diff_val(baseline_results['tothhtax'], scenario_results['tothhtax']),
+                    'gr': diff_val(baseline_results.get('gr', 0), scenario_results.get('gr', 0)),
                     'yh': {hh: diff_val(baseline_results['yh'].get(hh, 0), scenario_results['yh'].get(hh, 0)) for hh in baseline_results['yh']}
                 }
 
@@ -419,7 +419,7 @@ def compare_scenarios():
                 diffs = {
                     'omega': diff_val(baseline_results['omega'], scenario_results['omega']),
                     'y': diff_val(baseline_results['y'], scenario_results['y']),
-                    'tothhtax': diff_val(baseline_results['tothhtax'], scenario_results['tothhtax']),
+                    'gr': diff_val(baseline_results.get('gr', 0), scenario_results.get('gr', 0)),
                     'yh': {hh: diff_val(baseline_results['yh'].get(hh, 0), scenario_results['yh'].get(hh, 0)) for hh in baseline_results['yh']}
                 }
 

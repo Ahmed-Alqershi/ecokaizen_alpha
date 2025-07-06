@@ -975,8 +975,20 @@ const ModelBuilderPage = () => {
                       if (Array.isArray(baseVal) && Array.isArray(scenVal)) {
                         baseVal.forEach((b, idx) => {
                           if (scenVal[idx] !== b) {
+                            let label = `${String(key)}[${idx}]`;
+                            if (selectedTemplate && (selectedTemplate.id === 'korea-cge' || selectedTemplate.id === 'saudi-cge')) {
+                              if (key === 'incomeTax' && samData.households[idx]) {
+                                label = `${String(key)} (${samData.households[idx]})`;
+                              } else if ((key === 'tariff' || key === 'indirectTax') && samData.goods[idx]) {
+                                label = `${String(key)} (${samData.goods[idx]})`;
+                              }
+                            }
                             rows.push(
-                              <tr key={`${String(key)}-${idx}`}><td className="px-2 py-1 whitespace-nowrap text-sm text-darkgray">{`${String(key)}[${idx}]`}</td><td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{b}</td><td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{scenVal[idx]}</td></tr>
+                              <tr key={`${String(key)}-${idx}`}>
+                                <td className="px-2 py-1 whitespace-nowrap text-sm text-darkgray">{label}</td>
+                                <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{b}</td>
+                                <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{scenVal[idx]}</td>
+                              </tr>
                             );
                           }
                         });

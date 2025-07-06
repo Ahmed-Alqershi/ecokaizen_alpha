@@ -79,6 +79,7 @@ def _extract_summary(container) -> Dict[str, Any]:
         "omega": get_val("omega"),
         "y": get_val("y"),
         "tothhtax": get_val("tothhtax"),
+        "gr": get_val("gr"),
         "yh": hh_income,
     }
 

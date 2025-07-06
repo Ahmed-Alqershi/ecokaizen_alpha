@@ -32,9 +32,9 @@ const ComparisonDisplay = ({ comparison }: ComparisonDisplayProps) => {
     }
   } else {
     const mapping: { key: keyof ScenarioComparison['baseline']; desc: string }[] = [
-      { key: 'omega', desc: 'Total utility' },
-      { key: 'y', desc: 'Total GDP' },
-      { key: 'tothhtax', desc: 'Total household tax revenue' },
+      { key: 'omega', desc: 'Utility' },
+      { key: 'y', desc: 'GDP' },
+      { key: 'gr', desc: 'Government revenue' },
     ];
     mapping.forEach(({ key, desc }) => {
       const diff: any = (comparison.differences as any)[key];

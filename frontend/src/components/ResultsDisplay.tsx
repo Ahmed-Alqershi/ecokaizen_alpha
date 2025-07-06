@@ -31,18 +31,18 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
   const indicators: { label: string; value: number }[] = [];
   if (typeof results.gdp === 'number') {
     indicators.push({ label: 'GDP', value: results.gdp });
+  } else if (typeof results.y === 'number') {
+    indicators.push({ label: 'GDP', value: results.y });
   }
   if (typeof results.utility === 'number') {
     indicators.push({ label: 'Utility', value: results.utility });
+  } else if (typeof results.omega === 'number') {
+    indicators.push({ label: 'Utility', value: results.omega });
   }
-  if (typeof results.omega === 'number') {
-    indicators.push({ label: summaryOnly ? 'Utility' : 'Omega', value: results.omega });
-  }
-  if (typeof results.y === 'number') {
-    indicators.push({ label: 'GDP', value: results.y });
-  }
-  if (typeof results.tothhtax === 'number' && !summaryOnly) {
-    indicators.push({ label: 'Household Tax', value: results.tothhtax });
+  if (typeof results.gr === 'number') {
+    indicators.push({ label: 'Government Revenue', value: results.gr });
+  } else if (results.financials?.gr?.value !== undefined) {
+    indicators.push({ label: 'Government Revenue', value: results.financials.gr.value });
   }
   if (results.yh) {
     Object.entries(results.yh).forEach(([hh, val]) => {
