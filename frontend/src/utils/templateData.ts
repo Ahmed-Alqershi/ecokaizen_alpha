@@ -50,7 +50,7 @@ const templates: ModelTemplate[] = [
     id: 'saudi-cge',
     name: 'Saudi CGE Model',
     shortDescription: 'Energy dependent economy with expat labor considerations',
-    type: 'korea',
+    type: 'saudi',
     sectors: ['agricult', 'oilgas', 'tourism'],
     factors: ['CAP', 'LAB'],
     households: ['saudi-hh', 'expat-hh'],
