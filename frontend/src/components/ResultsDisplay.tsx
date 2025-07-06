@@ -9,38 +9,64 @@ interface ResultsDisplayProps {
 
 const ResultsDisplay = ({ results, title = 'Model Results', templateId }: ResultsDisplayProps) => {
   // Format data for charts
-  const priceChartData = Object.entries(results.prices || {}).map(([key, value]) => ({
-    name: key,
-    price: value
-  }));
+  const priceChartData = Object.entries(results.prices || {}).map(
+    ([key, value]) => ({
+      name: key,
+      price: value
+    })
+  );
 
-  const productionChartData = Object.entries(results.production || {}).map(([key, value]) => ({
-    name: key,
-    production: value
-  }));
+  const productionChartData = Object.entries(results.production || {}).map(
+    ([key, value]) => ({
+      name: key,
+      production: value
+    })
+  );
 
   const financialChartData = results.financials
     ? Object.entries(results.financials).map(([k, v]) => ({ name: k, value: v.value }))
     : [];
 
+  const indicators: { label: string; value: number }[] = [];
+  if (typeof results.gdp === 'number') {
+    indicators.push({ label: 'GDP', value: results.gdp });
+  }
+  if (typeof results.utility === 'number') {
+    indicators.push({ label: 'Utility', value: results.utility });
+  }
+  if (typeof results.omega === 'number') {
+    indicators.push({ label: 'Omega', value: results.omega });
+  }
+  if (typeof results.y === 'number') {
+    indicators.push({ label: 'GDP', value: results.y });
+  }
+  if (typeof results.tothhtax === 'number') {
+    indicators.push({ label: 'Household Tax', value: results.tothhtax });
+  }
+  if (results.yh) {
+    Object.entries(results.yh).forEach(([hh, val]) => {
+      indicators.push({ label: `Income (${hh})`, value: val });
+    });
+  }
+
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm">
       <h3 className="text-lg font-medium mb-4">{title}</h3>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card">
-          <h4 className="text-md font-medium mb-2">Key Indicators</h4>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-darkgray/70">GDP</p>
-              <p className="text-xl font-medium">{results.gdp.toFixed(2)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-darkgray/70">Utility</p>
-              <p className="text-xl font-medium">{results.utility.toFixed(2)}</p>
+        {indicators.length > 0 && (
+          <div className="card">
+            <h4 className="text-md font-medium mb-2">Key Indicators</h4>
+            <div className="grid grid-cols-2 gap-4">
+              {indicators.map(ind => (
+                <div key={ind.label}>
+                  <p className="text-sm text-darkgray/70">{ind.label}</p>
+                  <p className="text-xl font-medium">{ind.value.toFixed(2)}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
         
         {results.financials ? (
           <div className="card">
@@ -78,7 +104,7 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-midgray/30">
-                  {Object.entries(results.prices).map(([key, value]) => (
+                  {Object.entries(results.prices || {}).map(([key, value]) => (
                     <tr key={key}>
                       <td className="px-2 py-1 whitespace-nowrap text-sm font-medium text-darkgray">{key}</td>
                       <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{value.toFixed(2)}</td>
