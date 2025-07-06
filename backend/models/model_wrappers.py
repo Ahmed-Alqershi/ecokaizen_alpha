@@ -5,7 +5,7 @@ from . import camcge, korcge, saudicge
 
 
 def _extract_results(container) -> Dict[str, float]:
-    """Extract key results from a solved container."""
+    """Extract key results from a solved container along with units."""
     prices = container["px"].toDict() if "px" in container else {}
     production = container["xd"].toDict() if "xd" in container else {}
 
@@ -30,7 +30,10 @@ def _extract_results(container) -> Dict[str, float]:
     ]:
         if var in container:
             try:
-                financials[var] = float(container[var].toValue())
+                val = float(container[var].toValue())
+                desc = getattr(container[var], "description", "")
+                unit = desc.split("(")[-1].rstrip(")") if "(" in desc else ""
+                financials[var] = {"value": val, "unit": unit}
             except Exception:
                 pass
 

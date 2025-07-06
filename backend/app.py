@@ -373,14 +373,14 @@ def compare_scenarios():
                 baseline_results = solve_korea(baseline_tariff, baseline_itax, baseline_htax)
                 scenario_results = solve_korea(scenario_tariff, scenario_itax, scenario_htax)
 
-                def diff_dict(base: Dict[str, float], other: Dict[str, float]):
+                def diff_dict(base: Dict[str, Dict[str, float]], other: Dict[str, Dict[str, float]]):
                     d = {}
                     for k in base:
-                        b = float(base[k])
-                        o = float(other.get(k, 0))
+                        b = float(base[k].get('value', 0))
+                        o = float(other.get(k, {}).get('value', 0))
                         val = o - b
                         pct = (val / b * 100) if b != 0 else 0
-                        d[k] = {'value': val, 'percentChange': pct}
+                        d[k] = {'value': val, 'percentChange': pct, 'unit': base[k].get('unit', '')}
                     return d
 
                 price_diffs = diff_dict(baseline_results['prices'], scenario_results['prices'])
@@ -425,14 +425,14 @@ def compare_scenarios():
                 baseline_results = solve_saudi(baseline_tariff, baseline_itax, baseline_htax)
                 scenario_results = solve_saudi(scenario_tariff, scenario_itax, scenario_htax)
 
-                def diff_dict(base: Dict[str, float], other: Dict[str, float]):
+                def diff_dict(base: Dict[str, Dict[str, float]], other: Dict[str, Dict[str, float]]):
                     d = {}
                     for k in base:
-                        b = float(base[k])
-                        o = float(other.get(k, 0))
+                        b = float(base[k].get('value', 0))
+                        o = float(other.get(k, {}).get('value', 0))
                         val = o - b
                         pct = (val / b * 100) if b != 0 else 0
-                        d[k] = {'value': val, 'percentChange': pct}
+                        d[k] = {'value': val, 'percentChange': pct, 'unit': base[k].get('unit', '')}
                     return d
 
                 fin_diffs = diff_dict(baseline_results['financials'], scenario_results['financials'])

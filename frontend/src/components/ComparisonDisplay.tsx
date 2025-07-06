@@ -13,8 +13,9 @@ const ComparisonDisplay = ({ comparison }: ComparisonDisplayProps) => {
   const comparisonData = comparison.differences.financials
     ? Object.entries(comparison.differences.financials).map(([k, v]) => ({
         name: k,
-        baseline: comparison.baseline.financials?.[k] || 0,
-        scenario: comparison.scenario.financials?.[k] || 0,
+        baseline: comparison.baseline.financials?.[k]?.value || 0,
+        scenario: comparison.scenario.financials?.[k]?.value || 0,
+        unit: comparison.baseline.financials?.[k]?.unit || ''
       }))
     : [];
 
@@ -23,8 +24,8 @@ const ComparisonDisplay = ({ comparison }: ComparisonDisplayProps) => {
       ['Indicator', 'Baseline', 'Scenario', '% Change'],
       ...Object.entries(comparison.differences.financials || {}).map(([k, v]) => [
         k,
-        (comparison.baseline.financials?.[k] || 0).toFixed(2),
-        (comparison.scenario.financials?.[k] || 0).toFixed(2),
+        (comparison.baseline.financials?.[k]?.value || 0).toFixed(2),
+        (comparison.scenario.financials?.[k]?.value || 0).toFixed(2),
         v.percentChange.toFixed(2),
       ]),
       ['GDP', comparison.baseline.gdp.toFixed(2), comparison.scenario.gdp.toFixed(2), comparison.differences.gdp.percentChange.toFixed(2)],
@@ -62,8 +63,12 @@ const ComparisonDisplay = ({ comparison }: ComparisonDisplayProps) => {
                 {Object.entries(comparison.differences.financials || {}).map(([k, v]) => (
                   <tr key={k}>
                     <td className="px-2 py-1 whitespace-nowrap text-sm font-medium text-darkgray">{k}</td>
-                    <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{(comparison.baseline.financials?.[k] || 0).toFixed(2)}</td>
-                    <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{(comparison.scenario.financials?.[k] || 0).toFixed(2)}</td>
+                    <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">
+                      {(comparison.baseline.financials?.[k]?.value || 0).toFixed(2)} {comparison.baseline.financials?.[k]?.unit}
+                    </td>
+                    <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">
+                      {(comparison.scenario.financials?.[k]?.value || 0).toFixed(2)} {comparison.scenario.financials?.[k]?.unit}
+                    </td>
                     <td className={`px-2 py-1 whitespace-nowrap text-sm text-right ${
                       v.percentChange > 0 ? 'text-success' : v.percentChange < 0 ? 'text-warning' : 'text-darkgray'
                     }`}>
