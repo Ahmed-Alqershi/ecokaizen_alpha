@@ -373,36 +373,22 @@ def compare_scenarios():
                 baseline_results = solve_korea(baseline_tariff, baseline_itax, baseline_htax)
                 scenario_results = solve_korea(scenario_tariff, scenario_itax, scenario_htax)
 
-                def diff_dict(base: Dict[str, Dict[str, float]], other: Dict[str, Dict[str, float]]):
-                    d = {}
-                    for k in base:
-                        b = float(base[k].get('value', 0))
-                        o = float(other.get(k, {}).get('value', 0))
-                        val = o - b
-                        pct = (val / b * 100) if b != 0 else 0
-                        d[k] = {'value': val, 'percentChange': pct, 'unit': base[k].get('unit', '')}
-                    return d
+                def diff_val(b: float, o: float) -> Dict[str, float]:
+                    val = o - b
+                    pct = (val / b * 100) if b != 0 else 0
+                    return {'value': val, 'percentChange': pct}
 
-                price_diffs = diff_dict(baseline_results['prices'], scenario_results['prices'])
-                prod_diffs = diff_dict(baseline_results['production'], scenario_results['production'])
-                fin_diffs = diff_dict(baseline_results['financials'], scenario_results['financials'])
-
-                util_diff = scenario_results['utility'] - baseline_results['utility']
-                util_pct = (util_diff / baseline_results['utility'] * 100) if baseline_results['utility'] else 0
-
-                gdp_diff = scenario_results['gdp'] - baseline_results['gdp']
-                gdp_pct = (gdp_diff / baseline_results['gdp'] * 100) if baseline_results['gdp'] else 0
+                diffs = {
+                    'omega': diff_val(baseline_results['omega'], scenario_results['omega']),
+                    'y': diff_val(baseline_results['y'], scenario_results['y']),
+                    'tothhtax': diff_val(baseline_results['tothhtax'], scenario_results['tothhtax']),
+                    'yh': {hh: diff_val(baseline_results['yh'].get(hh, 0), scenario_results['yh'].get(hh, 0)) for hh in baseline_results['yh']}
+                }
 
                 return jsonify({
                     'baseline': baseline_results,
                     'scenario': scenario_results,
-                    'differences': {
-                        'prices': price_diffs,
-                        'production': prod_diffs,
-                        'financials': fin_diffs,
-                        'utility': {'value': util_diff, 'percentChange': util_pct},
-                        'gdp': {'value': gdp_diff, 'percentChange': gdp_pct},
-                    }
+                    'differences': diffs
                 })
             except Exception as kor_err:
                 error_message = f"Error comparing Korea scenarios: {kor_err}"
@@ -425,27 +411,22 @@ def compare_scenarios():
                 baseline_results = solve_saudi(baseline_tariff, baseline_itax, baseline_htax)
                 scenario_results = solve_saudi(scenario_tariff, scenario_itax, scenario_htax)
 
-                def diff_dict(base: Dict[str, Dict[str, float]], other: Dict[str, Dict[str, float]]):
-                    d = {}
-                    for k in base:
-                        b = float(base[k].get('value', 0))
-                        o = float(other.get(k, {}).get('value', 0))
-                        val = o - b
-                        pct = (val / b * 100) if b != 0 else 0
-                        d[k] = {'value': val, 'percentChange': pct, 'unit': base[k].get('unit', '')}
-                    return d
+                def diff_val(b: float, o: float) -> Dict[str, float]:
+                    val = o - b
+                    pct = (val / b * 100) if b != 0 else 0
+                    return {'value': val, 'percentChange': pct}
 
-                fin_diffs = diff_dict(baseline_results['financials'], scenario_results['financials'])
-                gdp_diff = scenario_results['gdp'] - baseline_results['gdp']
-                gdp_pct = (gdp_diff / baseline_results['gdp'] * 100) if baseline_results['gdp'] else 0
+                diffs = {
+                    'omega': diff_val(baseline_results['omega'], scenario_results['omega']),
+                    'y': diff_val(baseline_results['y'], scenario_results['y']),
+                    'tothhtax': diff_val(baseline_results['tothhtax'], scenario_results['tothhtax']),
+                    'yh': {hh: diff_val(baseline_results['yh'].get(hh, 0), scenario_results['yh'].get(hh, 0)) for hh in baseline_results['yh']}
+                }
 
                 return jsonify({
                     'baseline': baseline_results,
                     'scenario': scenario_results,
-                    'differences': {
-                        'financials': fin_diffs,
-                        'gdp': {'value': gdp_diff, 'percentChange': gdp_pct},
-                    }
+                    'differences': diffs
                 })
             except Exception as sau_err:
                 error_message = f"Error comparing Saudi scenarios: {sau_err}"
