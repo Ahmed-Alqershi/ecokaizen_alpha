@@ -35,19 +35,25 @@ export interface ModelParameters {
 
 // Model Results
 export interface ModelResults {
-  prices: {
+  prices?: {
     [key: string]: number;
   };
-  production: {
+  production?: {
     [key: string]: number;
   };
-  utility: number;
-  gdp: number;
+  utility?: number;
+  gdp?: number;
   financials?: {
     [key: string]: {
       value: number;
       unit?: string;
     };
+  };
+  omega?: number;
+  y?: number;
+  tothhtax?: number;
+  yh?: {
+    [key: string]: number;
   };
   params?: {
     tariff?: number[];
@@ -61,13 +67,13 @@ export interface ScenarioComparison {
   baseline: ModelResults;
   scenario: ModelResults;
   differences: {
-    prices: {
+    prices?: {
       [key: string]: {
         value: number;
         percentChange: number;
       };
     };
-    production: {
+    production?: {
       [key: string]: {
         value: number;
         percentChange: number;
@@ -80,13 +86,31 @@ export interface ScenarioComparison {
         unit?: string;
       };
     };
-    utility: {
+    utility?: {
       value: number;
       percentChange: number;
     };
-    gdp: {
+    gdp?: {
       value: number;
       percentChange: number;
+    };
+    omega?: {
+      value: number;
+      percentChange: number;
+    };
+    y?: {
+      value: number;
+      percentChange: number;
+    };
+    tothhtax?: {
+      value: number;
+      percentChange: number;
+    };
+    yh?: {
+      [key: string]: {
+        value: number;
+        percentChange: number;
+      };
     };
   };
 }

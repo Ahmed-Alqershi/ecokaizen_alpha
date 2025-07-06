@@ -953,7 +953,52 @@ const ModelBuilderPage = () => {
       {currentStep === 6 && comparisonResults && (
         <div>
           <h2 className="text-2xl font-semibold mb-6">Scenario Comparison Results</h2>
-          
+
+          <div className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Parameter Changes</h3>
+            <table className="min-w-full divide-y divide-midgray/30">
+              <thead>
+                <tr>
+                  <th className="px-2 py-1 text-left text-xs font-medium text-darkgray/70 uppercase tracking-wider">Parameter</th>
+                  <th className="px-2 py-1 text-right text-xs font-medium text-darkgray/70 uppercase tracking-wider">Baseline</th>
+                  <th className="px-2 py-1 text-right text-xs font-medium text-darkgray/70 uppercase tracking-wider">Scenario</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-midgray/30">
+                {(() => {
+                  const rows: JSX.Element[] = [];
+                  if (modelParameters && scenarioParameters) {
+                    const keys = Object.keys(scenarioParameters) as (keyof typeof scenarioParameters)[];
+                    keys.forEach(key => {
+                      const baseVal: any = (modelParameters as any)[key];
+                      const scenVal: any = (scenarioParameters as any)[key];
+                      if (Array.isArray(baseVal) && Array.isArray(scenVal)) {
+                        baseVal.forEach((b, idx) => {
+                          if (scenVal[idx] !== b) {
+                            rows.push(
+                              <tr key={`${String(key)}-${idx}`}><td className="px-2 py-1 whitespace-nowrap text-sm text-darkgray">{`${String(key)}[${idx}]`}</td><td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{b}</td><td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{scenVal[idx]}</td></tr>
+                            );
+                          }
+                        });
+                      } else if (scenVal !== baseVal) {
+                        rows.push(
+                          <tr key={String(key)}>
+                            <td className="px-2 py-1 whitespace-nowrap text-sm text-darkgray">{String(key)}</td>
+                            <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{baseVal}</td>
+                            <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{scenVal}</td>
+                          </tr>
+                        );
+                      }
+                    });
+                  }
+                  return rows.length > 0 ? rows : (
+                    <tr><td colSpan={3} className="px-2 py-1 text-sm text-darkgray">No parameter changes</td></tr>
+                  );
+                })()}
+              </tbody>
+            </table>
+          </div>
+
           <ComparisonDisplay comparison={comparisonResults} />
           
           <div className="mt-8 flex justify-between">

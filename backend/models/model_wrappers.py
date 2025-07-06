@@ -1,5 +1,5 @@
 import importlib
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from . import camcge, korcge, saudicge
 
@@ -55,6 +55,36 @@ def _extract_results(container) -> Dict[str, float]:
     }
 
 
+def _extract_summary(container) -> Dict[str, Any]:
+    """Extract a summary of key results for Korea and Saudi models."""
+    def get_val(var: str) -> float:
+        if var in container:
+            try:
+                return float(container[var].toValue())
+            except Exception:
+                return 0.0
+        return 0.0
+
+    # Household incomes are by household type
+    hh_income = {}
+    if "yh" in container:
+        try:
+            for item in container["yh"].toList():
+                if len(item) >= 2:
+                    hh_income[str(item[0])] = float(item[1])
+        except Exception:
+            hh_income = {}
+
+    summary = {
+        "omega": get_val("omega"),
+        "y": get_val("y"),
+        "tothhtax": get_val("tothhtax"),
+        "yh": hh_income,
+    }
+
+    return summary
+
+
 def solve_cameroon() -> Dict[str, float]:
     """Run the Cameroon CGE model with its default data."""
     mod = importlib.reload(camcge)
@@ -87,7 +117,7 @@ def solve_korea(
             mod.htax[hh] = float(val)
 
     mod.model1.solve(solver="CONOPT")
-    results = _extract_results(mod.m)
+    results = _extract_summary(mod.m)
     results["params"] = defaults
     return results
 
@@ -116,6 +146,6 @@ def solve_saudi(
             mod.htax[hh] = float(val)
 
     mod.model1.solve(solver="CONOPT")
-    results = _extract_results(mod.m)
+    results = _extract_summary(mod.m)
     results["params"] = defaults
     return results
