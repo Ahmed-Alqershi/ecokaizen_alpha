@@ -71,9 +71,9 @@ def solve_korea(
     mod = importlib.reload(korcge)
 
     defaults = {
-        "tariff": mod.tm.toDense(),
-        "indirectTax": mod.itax.toDense(),
-        "incomeTax": mod.htax.toDense(),
+        "tariff": list(mod.tm.toDense()),
+        "indirectTax": list(mod.itax.toDense()),
+        "incomeTax": list(mod.htax.toDense()),
     }
 
     if tariff is not None:
@@ -101,9 +101,9 @@ def solve_saudi(
     mod = importlib.reload(saudicge)
 
     defaults = {
-        "tariff": mod.tm.toDense(),
-        "indirectTax": mod.itax.toDense(),
-        "incomeTax": mod.htax.toDense(),
+        "tariff": list(mod.tm.toDense()),
+        "indirectTax": list(mod.itax.toDense()),
+        "incomeTax": list(mod.htax.toDense()),
     }
     if tariff is not None:
         for sec, val in zip(mod.data.sectors, tariff):
