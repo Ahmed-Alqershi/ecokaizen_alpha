@@ -6,14 +6,23 @@ from . import camcge, korcge, saudicge
 
 def _extract_results(container) -> Dict[str, float]:
     """Extract key results from a solved container along with units."""
-    prices = container["px"].toDict() if "px" in container else {}
-    production = container["xd"].toDict() if "xd" in container else {}
+    prices = {}
+    if "px" in container:
+        for item in container["px"].toList():
+            if len(item) >= 2:
+                prices[str(item[0])] = float(item[1])
+
+    production = {}
+    if "xd" in container:
+        for item in container["xd"].toList():
+            if len(item) >= 2:
+                production[str(item[0])] = float(item[1])
 
     utility_var = container["omega"]
     utility = float(utility_var.toValue()) if utility_var is not None else 0.0
 
-    # According to model specifications GDP equals the objective function value
-    gdp = utility
+    # GDP is provided by variable ``y`` in the models
+    gdp = float(container["y"].toValue()) if "y" in container else 0.0
 
     financials = {}
     for var in [
