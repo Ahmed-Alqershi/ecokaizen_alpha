@@ -44,7 +44,10 @@ export interface ModelResults {
   utility: number;
   gdp: number;
   financials?: {
-    [key: string]: number;
+    [key: string]: {
+      value: number;
+      unit?: string;
+    };
   };
   params?: {
     tariff?: number[];
@@ -74,6 +77,7 @@ export interface ScenarioComparison {
       [key: string]: {
         value: number;
         percentChange: number;
+        unit?: string;
       };
     };
     utility: {

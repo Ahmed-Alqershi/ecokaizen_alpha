@@ -20,7 +20,7 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
   }));
 
   const financialChartData = results.financials
-    ? Object.entries(results.financials).map(([k, v]) => ({ name: k, value: v }))
+    ? Object.entries(results.financials).map(([k, v]) => ({ name: k, value: v.value }))
     : [];
 
   return (
@@ -57,7 +57,9 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
                   {Object.entries(results.financials).map(([k, v]) => (
                     <tr key={k}>
                       <td className="px-2 py-1 whitespace-nowrap text-sm font-medium text-darkgray">{k}</td>
-                      <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">{v.toFixed(2)}</td>
+                      <td className="px-2 py-1 whitespace-nowrap text-sm text-right text-darkgray">
+                        {v.value.toFixed(2)} {v.unit}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

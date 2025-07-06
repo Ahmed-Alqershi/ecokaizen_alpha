@@ -23,24 +23,8 @@ This model is ideal for beginners or classroom settings. It helps users understa
 
 ---
 
-## 2. 📊 Standard CGE Model (Full Domestic Economy with Taxes & Trade)
 
-**Best for:** Policy simulations, national-level planning, intermediate users
-
-**Key Features:**
-
-* Includes taxes, government, savings, investment, and foreign sector
-* Models intermediate inputs, factor markets, and production taxes
-* Armington function for imports and CET for exports
-* Household consumption, government spending, and capital formation all modeled
-* Output: Changes in prices, outputs, trade flows, and welfare indicators (e.g., EV)
-
-**Why choose this?**
-If you’re looking to analyze real-world policy issues like tariffs, tax changes, or foreign shocks, this is your go-to model. It offers rich structure while staying manageable. It’s perfect for applied research, consulting work, or pilot policy analysis.
-
----
-
-## 3. 🇨🇲 Cameroon CGE Model (Detailed Sectoral Model for a Developing Economy)
+## 2. 🇨🇲 Cameroon CGE Model (Detailed Sectoral Model for a Developing Economy)
 
 **Best for:** Sectoral studies, development planning, researchers working on African economies
 
@@ -56,7 +40,7 @@ This is a country-specific model template inspired by the World Bank framework, 
 
 ---
 
-## 4. 🇰🇷 Korea CGE Model (3-Sector Economy with Household Types)
+## 3. 🇰🇷 Korea CGE Model (3-Sector Economy with Household Types)
 
 **Best for:** Studying economic transformation, industrialization, or equity
 
@@ -73,7 +57,7 @@ If you're exploring themes like income inequality, structural change, or trade-d
 
 ---
 
-## 5. 🇸🇦 Saudi Arabia CGE Model (Oil-Driven Economy with Expat Labor)
+## 4. 🇸🇦 Saudi Arabia CGE Model (Oil-Driven Economy with Expat Labor)
 
 **Best for:** Resource-rich economies, subsidy analysis, labor market reforms
 
@@ -86,6 +70,22 @@ If you're exploring themes like income inequality, structural change, or trade-d
 
 **Why choose this?**
 Ideal for studying policy changes in oil-dependent economies or the impact of migrant labor regulations.
+
+---
+## 5. 📊 Standard CGE Model (Full Domestic Economy with Taxes & Trade)
+
+**Best for:** Policy simulations, national-level planning, intermediate users
+
+**Key Features:**
+
+* Includes taxes, government, savings, investment, and foreign sector
+* Models intermediate inputs, factor markets, and production taxes
+* Armington function for imports and CET for exports
+* Household consumption, government spending, and capital formation all modeled
+* Output: Changes in prices, outputs, trade flows, and welfare indicators (e.g., EV)
+
+**Why choose this?**
+If you’re looking to analyze real-world policy issues like tariffs, tax changes, or foreign shocks, this is your go-to model. It offers rich structure while staying manageable. It’s perfect for applied research, consulting work, or pilot policy analysis.
 
 ---
 
