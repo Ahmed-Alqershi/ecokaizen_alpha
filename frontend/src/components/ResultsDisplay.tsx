@@ -8,6 +8,7 @@ interface ResultsDisplayProps {
 }
 
 const ResultsDisplay = ({ results, title = 'Model Results', templateId }: ResultsDisplayProps) => {
+  const summaryOnly = templateId === 'saudi-cge' || templateId === 'korea-cge';
   // Format data for charts
   const priceChartData = Object.entries(results.prices || {}).map(
     ([key, value]) => ({
@@ -35,12 +36,12 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
     indicators.push({ label: 'Utility', value: results.utility });
   }
   if (typeof results.omega === 'number') {
-    indicators.push({ label: 'Omega', value: results.omega });
+    indicators.push({ label: summaryOnly ? 'Utility' : 'Omega', value: results.omega });
   }
   if (typeof results.y === 'number') {
     indicators.push({ label: 'GDP', value: results.y });
   }
-  if (typeof results.tothhtax === 'number') {
+  if (typeof results.tothhtax === 'number' && !summaryOnly) {
     indicators.push({ label: 'Household Tax', value: results.tothhtax });
   }
   if (results.yh) {
@@ -49,11 +50,16 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
     });
   }
 
+  const showFinancialCard = !!results.financials && !summaryOnly;
+  const showPricesCard =
+    !results.financials && Object.keys(results.prices || {}).length > 0 && !summaryOnly;
+  const gridColsClass = showFinancialCard || showPricesCard ? 'md:grid-cols-2' : 'md:grid-cols-1';
+
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm">
       <h3 className="text-lg font-medium mb-4">{title}</h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 ${gridColsClass} gap-4`}>
         {indicators.length > 0 && (
           <div className="card">
             <h4 className="text-md font-medium mb-2">Key Indicators</h4>
@@ -68,7 +74,7 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
           </div>
         )}
         
-        {results.financials ? (
+        {showFinancialCard && (
           <div className="card">
             <h4 className="text-md font-medium mb-2">Financial Indicators</h4>
             <div className="overflow-x-auto">
@@ -92,7 +98,8 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
               </table>
             </div>
           </div>
-        ) : (
+        )}
+        {showPricesCard && (
           <div className="card">
             <h4 className="text-md font-medium mb-2">Prices</h4>
             <div className="overflow-x-auto">
@@ -117,7 +124,7 @@ const ResultsDisplay = ({ results, title = 'Model Results', templateId }: Result
         )}
       </div>
 
-      {!results.financials && (
+      {!results.financials && !summaryOnly && (
         <>
           <div className="mt-6">
             <h4 className="text-md font-medium mb-2">Production by Sector</h4>
