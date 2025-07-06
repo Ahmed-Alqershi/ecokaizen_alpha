@@ -9,7 +9,7 @@ def _extract_results(container) -> Dict[str, float]:
     prices = container["px"].toDict() if "px" in container else {}
     production = container["xd"].toDict() if "xd" in container else {}
 
-    utility_var = container.get("omega")
+    utility_var = container["omega"]
     utility = float(utility_var.toValue()) if utility_var is not None else 0.0
 
     # According to model specifications GDP equals the objective function value
@@ -62,9 +62,9 @@ def solve_korea(
     mod = importlib.reload(korcge)
 
     defaults = {
-        "tariff": [float(mod.tm[s]) for s in mod.data.sectors],
-        "indirectTax": [float(mod.itax[s]) for s in mod.data.sectors],
-        "incomeTax": [float(mod.htax[h]) for h in mod.data.households],
+        "tariff": mod.tm.toDense(),
+        "indirectTax": mod.itax.toDense(),
+        "incomeTax": mod.htax.toDense(),
     }
 
     if tariff is not None:
@@ -92,9 +92,9 @@ def solve_saudi(
     mod = importlib.reload(saudicge)
 
     defaults = {
-        "tariff": [float(mod.tm[s]) for s in mod.data.sectors],
-        "indirectTax": [float(mod.itax[s]) for s in mod.data.sectors],
-        "incomeTax": [float(mod.htax[h]) for h in mod.data.households],
+        "tariff": mod.tm.toDense(),
+        "indirectTax": mod.itax.toDense(),
+        "incomeTax": mod.htax.toDense(),
     }
     if tariff is not None:
         for sec, val in zip(mod.data.sectors, tariff):
