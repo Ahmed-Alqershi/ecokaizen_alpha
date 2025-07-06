@@ -219,7 +219,6 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 };
