@@ -52,6 +52,7 @@ export interface ModelResults {
   omega?: number;
   y?: number;
   tothhtax?: number;
+  gr?: number;
   yh?: {
     [key: string]: number;
   };
@@ -99,6 +100,10 @@ export interface ScenarioComparison {
       percentChange: number;
     };
     y?: {
+      value: number;
+      percentChange: number;
+    };
+    gr?: {
       value: number;
       percentChange: number;
     };
