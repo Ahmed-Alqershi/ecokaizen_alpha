@@ -31,16 +31,18 @@ const ComparisonDisplay = ({ comparison }: ComparisonDisplayProps) => {
       });
     }
   } else {
-    const mapping: { key: keyof ScenarioComparison['baseline']; desc: string }[] = [
+    const mapping: { key: string; desc: string }[] = [
       { key: 'omega', desc: 'Utility' },
+      { key: 'utility', desc: 'Utility' },
       { key: 'y', desc: 'GDP' },
+      { key: 'gdp', desc: 'GDP' },
       { key: 'gr', desc: 'Government revenue' },
     ];
     mapping.forEach(({ key, desc }) => {
       const diff: any = (comparison.differences as any)[key];
-      if (diff) {
+      if (diff !== undefined) {
         rows.push({
-          symbol: String(key),
+          symbol: key,
           desc,
           baseline: (comparison.baseline as any)[key] || 0,
           scenario: (comparison.scenario as any)[key] || 0,
