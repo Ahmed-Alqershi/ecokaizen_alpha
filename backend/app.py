@@ -11,7 +11,7 @@ from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from models.splcge import add_input_solve
 from models.dynamic_splcge import dynamic_solve, extract_results
-from typing import Dict
+from typing import Dict, Optional
 from sam_utils.generator import generate_random_sam as gen_sam
 from utils.validators import (
     RequestValidationError,
@@ -59,10 +59,62 @@ def init_db():
             avatar = f"{row['username'][0].upper()}|{color}"
             conn.execute("UPDATE users SET avatar=? WHERE id=?", (avatar, row['id']))
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                template_id TEXT NOT NULL,
+                params TEXT,
+                sam TEXT,
+                results TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+
         conn.commit()
 
 
 init_db()
+
+
+def get_user_id(username: str) -> int | None:
+    with get_db_connection() as conn:
+        cur = conn.execute('SELECT id FROM users WHERE username=?', (username,))
+        row = cur.fetchone()
+        return row['id'] if row else None
+
+
+def insert_run(user_id: int, template_id: str, params: Dict, sam: Optional[Dict], results: Dict) -> int:
+    with get_db_connection() as conn:
+        cur = conn.execute(
+            'INSERT INTO runs (user_id, template_id, params, sam, results) VALUES (?, ?, ?, ?, ?)',
+            (user_id, template_id, json.dumps(params), json.dumps(sam) if sam else None, json.dumps(results)),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def fetch_runs_for_user(user_id: int) -> list[Dict]:
+    with get_db_connection() as conn:
+        cur = conn.execute(
+            'SELECT id, template_id, params, sam, results, created_at FROM runs WHERE user_id=? ORDER BY created_at DESC',
+            (user_id,),
+        )
+        rows = cur.fetchall()
+        return [dict(row) for row in rows]
+
+
+def fetch_run(run_id: int) -> Optional[Dict]:
+    with get_db_connection() as conn:
+        cur = conn.execute(
+            'SELECT id, user_id, template_id, params, sam, results, created_at FROM runs WHERE id=?',
+            (run_id,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
 
 
 def send_contact_email(name: str, email: str, message: str):
@@ -333,6 +385,53 @@ def login():
         return jsonify({'error': 'Invalid credentials'}), 401
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/runs', methods=['POST'])
+def record_run():
+    try:
+        data = parse_json_request(request)
+    except RequestValidationError as exc:
+        return jsonify({'error': exc.message}), exc.status_code
+
+    user_id = data.get('userId')
+    username = data.get('username')
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    if not user_id:
+        return jsonify({'error': 'Valid userId or username required'}), 400
+
+    template_id = data.get('templateId')
+    params = data.get('params', {})
+    sam = data.get('sam')
+    results = data.get('results', {})
+
+    run_id = insert_run(user_id, template_id, params, sam, results)
+    return jsonify({'id': run_id, 'message': 'Run saved'})
+
+
+@app.route('/runs', methods=['GET'])
+def list_runs():
+    username = request.args.get('username')
+    user_id = request.args.get('userId', type=int)
+
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    if not user_id:
+        return jsonify({'error': 'Valid userId or username required'}), 400
+
+    runs = fetch_runs_for_user(user_id)
+    return jsonify(runs)
+
+
+@app.route('/runs/<int:run_id>', methods=['GET'])
+def get_run(run_id: int):
+    run = fetch_run(run_id)
+    if run:
+        return jsonify(run)
+    return jsonify({'error': 'Run not found'}), 404
 
 @app.route('/compare-scenarios', methods=['POST'])
 def compare_scenarios():

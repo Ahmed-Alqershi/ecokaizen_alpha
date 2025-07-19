@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
+import { useLocation } from 'react-router-dom';
 import TemplateCard from '../components/TemplateCard';
 import SAMTable from '../components/SAMTable';
 import ParameterInputs from '../components/ParameterInputs';
@@ -16,9 +17,13 @@ import {
   exportSamToCsv,
   exportSamToExcel,
 } from '../utils/samUtils';
-import { solveModel, compareScenarios } from '../utils/api';
+import { solveModel, compareScenarios, saveRun } from '../utils/api';
+import { AuthContext } from '../contexts/AuthContext';
 
 const ModelBuilderPage = () => {
+  const location = useLocation();
+  const { username } = useContext(AuthContext);
+
   // Step tracking
   const [currentStep, setCurrentStep] = useState<number>(1);
   
@@ -63,6 +68,29 @@ const ModelBuilderPage = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [detailedError, setDetailedError] = useState<string | null>(null);
+
+  // Load run data when navigating from history
+  useEffect(() => {
+    const state: any = location.state;
+    if (state && state.run) {
+      const run = state.run;
+      const tpl = templates.find(t => t.id === run.template_id) || null;
+      if (tpl) setSelectedTemplate(tpl);
+      if (run.sam) {
+        setSamData(run.sam);
+        setIsCustomSam(true);
+        setSamConfigured(true);
+      }
+      if (run.params) {
+        setModelParameters(run.params);
+        setScenarioParameters({ ...run.params });
+      }
+      if (run.results) {
+        setModelResults(run.results);
+        setCurrentStep(5);
+      }
+    }
+  }, [location.state]);
   
   // Reset when template changes
   useEffect(() => {
@@ -375,6 +403,7 @@ const ModelBuilderPage = () => {
         setModelParameters({ ...modelParameters, ...results.params });
       }
       setModelResults(results);
+      await saveRun(username, templateId, modelParameters, isCustomSam ? samData : undefined, results);
       setCurrentStep(4);
     } catch (err) {
       console.error('Error solving model:', err);
@@ -431,6 +460,13 @@ const ModelBuilderPage = () => {
       );
       
       setComparisonResults(results);
+      await saveRun(
+        username,
+        templateId,
+        { baseline: modelParameters, scenario: scenarioParameters },
+        isCustomSam ? samData : undefined,
+        results
+      );
       setCurrentStep(6);
     } catch (err) {
       console.error('Error comparing scenarios:', err);

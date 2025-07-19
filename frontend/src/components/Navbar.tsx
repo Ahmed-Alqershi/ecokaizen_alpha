@@ -79,6 +79,18 @@ const Navbar = () => {
                   Model Builder
                 </Link>
               )}
+              {username && (
+                <Link
+                  to="/runs"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    location.pathname === '/runs'
+                      ? 'border-primary text-darkgray'
+                      : 'border-transparent text-midgray hover:text-darkgray'
+                  }`}
+                >
+                  Run History
+                </Link>
+              )}
             </div>
           </div>
           <div className="flex items-center">
