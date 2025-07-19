@@ -36,6 +36,7 @@ const ModelBuilderPage = () => {
   const [factorNames, setFactorNames] = useState<string[]>(['FACTOR1', 'FACTOR2']);
   const [householdNames, setHouseholdNames] = useState<string[]>(['HH1']);
   const [useCustomNames, setUseCustomNames] = useState<boolean>(false);
+  const [populateNamesFromFile, setPopulateNamesFromFile] = useState<boolean>(false);
   
   // SAM data
   // Use functional initializer so the default SAM is generated only once
@@ -303,12 +304,18 @@ const ModelBuilderPage = () => {
   const handleSamUpload = (sam: SAM) => {
     setSamData(sam);
     setIsCustomSam(true);
-    
+
     // Update parameters to match the new SAM dimensions
     setModelParameters({
       alpha: sam.goods.map((_, index) => 1 / sam.goods.length),
       b: sam.goods.map(() => 1.0)
     });
+  };
+
+  const handleNamesLoaded = (goodsFromFile: string[], factorsFromFile: string[], householdsFromFile: string[]) => {
+    setSectorNames(goodsFromFile);
+    setFactorNames(factorsFromFile);
+    setHouseholdNames(householdsFromFile);
   };
 
   // Download the current SAM as a CSV file
@@ -483,6 +490,7 @@ const ModelBuilderPage = () => {
     setFactorNames(['FACTOR1', 'FACTOR2']);
     setHouseholdNames(['HH1']);
     setUseCustomNames(false);
+    setPopulateNamesFromFile(false);
     setSamConfigured(false);
   };
   
@@ -703,6 +711,20 @@ const ModelBuilderPage = () => {
               </label>
             </div>
 
+            {useCustomNames && (
+              <div className="mb-6">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={populateNamesFromFile}
+                    onChange={(e) => setPopulateNamesFromFile(e.target.checked)}
+                    className="mr-2"
+                  />
+                  <span className="text-sm font-medium">Load names from uploaded SAM</span>
+                </label>
+              </div>
+            )}
+
             {/* Custom naming section */}
             {useCustomNames && (
               <div className="mb-6 space-y-4">
@@ -789,6 +811,8 @@ const ModelBuilderPage = () => {
                     goods={sectorNames}
                     factors={factorNames}
                     households={householdNames}
+                    autoPopulateNames={populateNamesFromFile}
+                    onNamesLoaded={handleNamesLoaded}
                   />
                 </div>
 
