@@ -139,12 +139,24 @@ export const saveRun = async (
 export const listRuns = async (username: string | undefined) => {
   if (!username) return [] as any[];
   const response = await api.get('/runs', { params: { username } });
-  return response.data as any[];
+  const runs = response.data as any[];
+  return runs.map((run) => ({
+    ...run,
+    params: run.params ? JSON.parse(run.params) : null,
+    sam: run.sam ? JSON.parse(run.sam) : null,
+    results: run.results ? JSON.parse(run.results) : null,
+  }));
 };
 
 export const getRun = async (id: number) => {
   const response = await api.get(`/runs/${id}`);
-  return response.data as any;
+  const run = response.data as any;
+  return {
+    ...run,
+    params: run.params ? JSON.parse(run.params) : null,
+    sam: run.sam ? JSON.parse(run.sam) : null,
+    results: run.results ? JSON.parse(run.results) : null,
+  };
 };
 
 // avatar format "<LETTER>|<COLOR>"
