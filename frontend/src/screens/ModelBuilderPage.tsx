@@ -179,10 +179,11 @@ const ModelBuilderPage = () => {
       useCustomModel,
       sectorCount,
       factorCount,
-      householdCount
+      householdCount,
+      samConfigured,
     });
 
-    if (currentStep === 3 && useCustomModel) {
+    if (currentStep === 3 && useCustomModel && !samConfigured) {
       console.log('Generating empty SAM for step 3 customization');
 
       // Generate an empty SAM template with the current dimensions
@@ -207,7 +208,7 @@ const ModelBuilderPage = () => {
         b: Array(sectorCount).fill(1.0)
       });
     }
-  }, [currentStep, useCustomModel, sectorCount, factorCount, householdCount, sectorNames, factorNames, householdNames, useCustomNames]);
+  }, [currentStep, useCustomModel, sectorCount, factorCount, householdCount, sectorNames, factorNames, householdNames, useCustomNames, samConfigured]);
 
   // Validate SAM whenever it changes
   useEffect(() => {
@@ -698,8 +699,8 @@ const ModelBuilderPage = () => {
               </div>
             </div>
 
-            {/* Custom naming toggle */}
-            <div className="mb-6">
+            {/* Custom naming toggle and file name loading option */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -709,21 +710,17 @@ const ModelBuilderPage = () => {
                 />
                 <span className="text-sm font-medium">Use custom names for sectors, factors, and households</span>
               </label>
-            </div>
 
-            {useCustomNames && (
-              <div className="mb-6">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={populateNamesFromFile}
-                    onChange={(e) => setPopulateNamesFromFile(e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm font-medium">Load names from uploaded SAM</span>
-                </label>
-              </div>
-            )}
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={populateNamesFromFile}
+                  onChange={(e) => setPopulateNamesFromFile(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium">Load names from uploaded SAM</span>
+              </label>
+            </div>
 
             {/* Custom naming section */}
             {useCustomNames && (
