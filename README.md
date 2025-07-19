@@ -87,6 +87,7 @@ Future versions will add:
 - Model builder with step-by-step workflow
 - Template selection interface
 - SAM editor with CSV/Excel upload capability
+- Option to auto-populate sector, factor and household names from uploaded SAM headers
 - Parameter input forms
 - Results visualization with charts
 - Scenario comparison dashboard

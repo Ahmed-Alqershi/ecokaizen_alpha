@@ -7,9 +7,23 @@ interface FileUploaderProps {
   goods: string[];
   factors: string[];
   households: string[];
+  /**
+   * When true, use the uploaded SAM's header names to populate sector,
+   * factor and household names instead of validating against the
+   * provided lists.
+   */
+  autoPopulateNames?: boolean;
+  onNamesLoaded?: (goods: string[], factors: string[], households: string[]) => void;
 }
 
-const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderProps) => {
+const FileUploader = ({
+  onSamLoaded,
+  goods,
+  factors,
+  households,
+  autoPopulateNames = false,
+  onNamesLoaded,
+}: FileUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -59,8 +73,7 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
       }
 
       if (parsed) {
-        const expectedEntries = [...goods, ...factors, ...households];
-        const expectedSize = expectedEntries.length;
+        const expectedSize = goods.length + factors.length + households.length;
 
         const trimmedHeader = parsed.columnNames.map(n => n.trim());
         const trimmedRows = parsed.rowNames.map(n => n.trim());
@@ -75,51 +88,78 @@ const FileUploader = ({ onSamLoaded, goods, factors, households }: FileUploaderP
           return;
         }
 
-        const trimmedExpected = expectedEntries.map(n => n.trim());
+        if (autoPopulateNames && onNamesLoaded) {
+          const rowMismatch = trimmedRows.some((n, i) => n !== trimmedHeader[i]);
+          if (rowMismatch) {
+            setWarning('Row and column names differ; column names used.');
+          } else {
+            setWarning(null);
+          }
 
-        const headerSet = new Set(trimmedHeader);
-        const rowSet = new Set(trimmedRows);
+          const goodsNames = trimmedHeader.slice(0, goods.length);
+          const factorNames = trimmedHeader.slice(goods.length, goods.length + factors.length);
+          const householdNames = trimmedHeader.slice(goods.length + factors.length);
 
-        const headerMatches =
-          headerSet.size === trimmedExpected.length &&
-          trimmedExpected.every(n => headerSet.has(n));
-        const rowMatches =
-          rowSet.size === trimmedExpected.length &&
-          trimmedExpected.every(n => rowSet.has(n));
+          onNamesLoaded(goodsNames, factorNames, householdNames);
 
-        if (!headerMatches || !rowMatches) {
-          setError(
-            `Names must match configured entries: ${trimmedExpected.join(', ')}`
-          );
-          return;
+          const sam: SAM = {
+            entries: trimmedHeader,
+            goods: goodsNames,
+            factors: factorNames,
+            households: householdNames,
+            data: parsed.data,
+          };
+
+          onSamLoaded(sam);
+        } else {
+          const expectedEntries = [...goods, ...factors, ...households];
+
+          const trimmedExpected = expectedEntries.map(n => n.trim());
+
+          const headerSet = new Set(trimmedHeader);
+          const rowSet = new Set(trimmedRows);
+
+          const headerMatches =
+            headerSet.size === trimmedExpected.length &&
+            trimmedExpected.every(n => headerSet.has(n));
+          const rowMatches =
+            rowSet.size === trimmedExpected.length &&
+            trimmedExpected.every(n => rowSet.has(n));
+
+          if (!headerMatches || !rowMatches) {
+            setError(
+              `Names must match configured entries: ${trimmedExpected.join(', ')}`
+            );
+            return;
+          }
+
+          // Reorder rows and columns to match expected entry order
+          const colIndexMap: Record<string, number> = {};
+          trimmedHeader.forEach((name, idx) => {
+            colIndexMap[name] = idx;
+          });
+
+          const rowIndexMap: Record<string, number> = {};
+          trimmedRows.forEach((name, idx) => {
+            rowIndexMap[name] = idx;
+          });
+
+          const reorderedData = expectedEntries.map(rowName => {
+            const originalRow = parsed!.data[rowIndexMap[rowName]];
+            return expectedEntries.map(colName => originalRow[colIndexMap[colName]]);
+          });
+
+          const sam: SAM = {
+            entries: expectedEntries,
+            goods,
+            factors,
+            households,
+            data: reorderedData,
+          };
+
+          setWarning(null);
+          onSamLoaded(sam);
         }
-
-        // Reorder rows and columns to match expected entry order
-        const colIndexMap: Record<string, number> = {};
-        trimmedHeader.forEach((name, idx) => {
-          colIndexMap[name] = idx;
-        });
-
-        const rowIndexMap: Record<string, number> = {};
-        trimmedRows.forEach((name, idx) => {
-          rowIndexMap[name] = idx;
-        });
-
-        const reorderedData = expectedEntries.map(rowName => {
-          const originalRow = parsed!.data[rowIndexMap[rowName]];
-          return expectedEntries.map(colName => originalRow[colIndexMap[colName]]);
-        });
-
-        const sam: SAM = {
-          entries: expectedEntries,
-          goods,
-          factors,
-          households,
-          data: reorderedData,
-        };
-
-        setWarning(null);
-        onSamLoaded(sam);
       } else {
         setError('Failed to parse the SAM data. Please check the file format.');
       }
