@@ -119,6 +119,34 @@ export const sendContactMessage = async (
   return response.data;
 };
 
+export const saveRun = async (
+  username: string | undefined,
+  templateId: string,
+  params: any,
+  sam: SAM | undefined,
+  results: any
+) => {
+  if (!username) return;
+  await api.post('/runs', {
+    username,
+    templateId,
+    params,
+    sam,
+    results,
+  });
+};
+
+export const listRuns = async (username: string | undefined) => {
+  if (!username) return [] as any[];
+  const response = await api.get('/runs', { params: { username } });
+  return response.data as any[];
+};
+
+export const getRun = async (id: number) => {
+  const response = await api.get(`/runs/${id}`);
+  return response.data as any;
+};
+
 // avatar format "<LETTER>|<COLOR>"
 export const registerUser = async (
   username: string,
