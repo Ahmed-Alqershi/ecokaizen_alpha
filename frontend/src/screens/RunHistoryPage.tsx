@@ -55,7 +55,7 @@ const RunHistoryPage = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto my-8">
+    <div className="max-w-4xl mx-auto my-8">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold">Run History</h2>
         {runs.length > 0 && (
@@ -65,19 +65,30 @@ const RunHistoryPage = () => {
         )}
       </div>
       {runs.length === 0 ? (
-        <p>No runs recorded.</p>
+        <p className="text-center">No runs recorded.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {runs.map((run) => (
-            <div key={run.id} className="p-4 bg-white rounded shadow-sm flex justify-between items-center">
-              <div>
-                <p className="font-medium">{run.template_id}</p>
-                <p className="text-sm text-darkgray/70">{new Date(run.created_at).toLocaleString()}</p>
+            <div
+              key={run.id}
+              className="rounded-lg shadow-md bg-white overflow-hidden transition-shadow hover:shadow-lg"
+            >
+              <div className="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white">
+                <p className="font-semibold">{run.template_id}</p>
+                <p className="text-xs opacity-90">
+                  {new Date(run.created_at).toLocaleString()}
+                </p>
               </div>
-              <div className="space-x-2">
-                <button className="btn" onClick={() => downloadResults(run)}>Download</button>
-                <button className="btn" onClick={() => removeRun(run.id)}>Delete</button>
-                <button className="btn btn-primary" onClick={() => startScenario(run)}>Start Scenario</button>
+              <div className="p-4 flex justify-end space-x-2">
+                <button className="btn btn-gradient-outline" onClick={() => downloadResults(run)}>
+                  Download
+                </button>
+                <button className="btn" onClick={() => removeRun(run.id)}>
+                  Delete
+                </button>
+                <button className="btn btn-primary" onClick={() => startScenario(run)}>
+                  Start Scenario
+                </button>
               </div>
             </div>
           ))}
