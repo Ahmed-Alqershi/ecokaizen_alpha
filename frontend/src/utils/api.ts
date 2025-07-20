@@ -148,6 +148,16 @@ export const listRuns = async (username: string | undefined) => {
   }));
 };
 
+export const deleteRun = async (id: number, username: string | undefined) => {
+  if (!username) return;
+  await api.delete(`/runs/${id}`, { params: { username } });
+};
+
+export const clearRuns = async (username: string | undefined) => {
+  if (!username) return;
+  await api.delete('/runs', { params: { username } });
+};
+
 export const getRun = async (id: number) => {
   const response = await api.get(`/runs/${id}`);
   const run = response.data as any;

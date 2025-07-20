@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext } from 'react';
-import { listRuns } from '../utils/api';
+import { listRuns, deleteRun, clearRuns } from '../utils/api';
 import { AuthContext } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -39,13 +39,31 @@ const RunHistoryPage = () => {
     navigate('/model-builder', { state: { run } });
   };
 
+  const removeRun = async (id: number) => {
+    await deleteRun(id, username);
+    setRuns(runs.filter((r) => r.id !== id));
+  };
+
+  const clearHistory = async () => {
+    if (runs.length === 0) return;
+    await clearRuns(username);
+    setRuns([]);
+  };
+
   if (!username) {
     return <div className="p-4">Please log in to view runs.</div>;
   }
 
   return (
     <div className="max-w-3xl mx-auto my-8">
-      <h2 className="text-2xl font-semibold mb-6">Run History</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold">Run History</h2>
+        {runs.length > 0 && (
+          <button className="btn btn-secondary" onClick={clearHistory}>
+            Clear History
+          </button>
+        )}
+      </div>
       {runs.length === 0 ? (
         <p>No runs recorded.</p>
       ) : (
@@ -58,6 +76,7 @@ const RunHistoryPage = () => {
               </div>
               <div className="space-x-2">
                 <button className="btn" onClick={() => downloadResults(run)}>Download</button>
+                <button className="btn" onClick={() => removeRun(run.id)}>Delete</button>
                 <button className="btn btn-primary" onClick={() => startScenario(run)}>Start Scenario</button>
               </div>
             </div>
