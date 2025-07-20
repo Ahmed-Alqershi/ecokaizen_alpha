@@ -117,6 +117,18 @@ def fetch_run(run_id: int) -> Optional[Dict]:
         return dict(row) if row else None
 
 
+def delete_run(run_id: int) -> None:
+    with get_db_connection() as conn:
+        conn.execute('DELETE FROM runs WHERE id=?', (run_id,))
+        conn.commit()
+
+
+def delete_runs_for_user(user_id: int) -> None:
+    with get_db_connection() as conn:
+        conn.execute('DELETE FROM runs WHERE user_id=?', (user_id,))
+        conn.commit()
+
+
 def send_contact_email(name: str, email: str, message: str):
     smtp_server = os.environ.get('SMTP_SERVER', 'localhost')
     smtp_port = int(os.environ.get('SMTP_PORT', 25))
@@ -432,6 +444,40 @@ def get_run(run_id: int):
     if run:
         return jsonify(run)
     return jsonify({'error': 'Run not found'}), 404
+
+
+@app.route('/runs/<int:run_id>', methods=['DELETE'])
+def remove_run(run_id: int):
+    username = request.args.get('username')
+    user_id = request.args.get('userId', type=int)
+
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    run = fetch_run(run_id)
+    if not run:
+        return jsonify({'error': 'Run not found'}), 404
+
+    if user_id and run['user_id'] != user_id:
+        return jsonify({'error': 'Run not found for this user'}), 404
+
+    delete_run(run_id)
+    return jsonify({'message': 'Run deleted'})
+
+
+@app.route('/runs', methods=['DELETE'])
+def clear_runs():
+    username = request.args.get('username')
+    user_id = request.args.get('userId', type=int)
+
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    if not user_id:
+        return jsonify({'error': 'Valid userId or username required'}), 400
+
+    delete_runs_for_user(user_id)
+    return jsonify({'message': 'Run history cleared'})
 
 @app.route('/compare-scenarios', methods=['POST'])
 def compare_scenarios():
