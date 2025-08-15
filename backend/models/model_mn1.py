@@ -28,6 +28,7 @@ from gamspy import Model
 from gamspy import Options
 from gamspy import Ord
 from gamspy import Card
+from gamspy import ModelStatus
 
 from gamspy.math import rpower
 
@@ -270,7 +271,8 @@ SLS       = Parameter(m, name="SLS"      , domain=LS.domain    , description="Sh
 # Solve the model
 MOD221_CAL.solve(options=options)
 
-print(MOD221_CAL.status)
+if not MOD221_CAL.status in [ModelStatus.OptimalGlobal, ModelStatus.OptimalLocal]:
+    raise Exception(f"Model did not solve optimally. Status: {MOD221_CAL.status}")
 
 # Report changes in parameters
 VX           = Parameter(m, name="VX"         , domain=[consumers, inds], description="Change in Consumers demand for products"            )
