@@ -172,6 +172,12 @@ def fetch_project(project_id: int) -> Optional[Dict]:
         return dict(row) if row else None
 
 
+def delete_project(project_id: int) -> None:
+    with get_db_connection() as conn:
+        conn.execute('DELETE FROM projects WHERE id=?', (project_id,))
+        conn.commit()
+
+
 def send_contact_email(name: str, email: str, message: str):
     smtp_server = os.environ.get('SMTP_SERVER', 'localhost')
     smtp_port = int(os.environ.get('SMTP_PORT', 25))
@@ -567,6 +573,25 @@ def list_projects_route():
 
     projects = fetch_projects_for_user(user_id)
     return jsonify(projects)
+
+
+@app.route('/projects/<int:project_id>', methods=['DELETE'])
+def delete_project_route(project_id: int):
+    username = request.args.get('username')
+    user_id = request.args.get('userId', type=int)
+
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    if not user_id:
+        return jsonify({'error': 'Valid userId or username required'}), 400
+
+    project = fetch_project(project_id)
+    if not project or project['user_id'] != user_id:
+        return jsonify({'error': 'Project not found'}), 404
+
+    delete_project(project_id)
+    return jsonify({'message': 'Project deleted'})
 
 @app.route('/compare-scenarios', methods=['POST'])
 def compare_scenarios():
