@@ -69,6 +69,18 @@ const Navbar = () => {
               </Link>
               {username && (
                 <Link
+                  to="/project-wizard"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    location.pathname === '/project-wizard'
+                      ? 'border-primary text-darkgray'
+                      : 'border-transparent text-midgray hover:text-darkgray'
+                  }`}
+                >
+                  New Project
+                </Link>
+              )}
+              {username && (
+                <Link
                   to="/model-builder"
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                     location.pathname === '/model-builder'
