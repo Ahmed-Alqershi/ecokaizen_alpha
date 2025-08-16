@@ -7,13 +7,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#2563eb",
+        primary: "#1d4ed8",
         secondary: "#9333ea",
         neutral: "#f9fafb",
         midgray: "#d1d5db",
         darkgray: "#1f2937",
         success: "#10b981",
         warning: "#f59e0b",
+        danger: "#ef4444",
       },
       keyframes: {
         fadeInUp: {

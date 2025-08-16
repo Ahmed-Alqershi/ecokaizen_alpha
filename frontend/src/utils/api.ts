@@ -208,4 +208,12 @@ export const listProjects = async (
   return response.data as Project[];
 };
 
+export const deleteProject = async (
+  username: string | undefined,
+  projectId: number
+): Promise<void> => {
+  if (!username) return;
+  await api.delete(`/projects/${projectId}`, { params: { username } });
+};
+
 export default api;
