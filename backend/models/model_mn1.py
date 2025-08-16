@@ -37,10 +37,10 @@ from dataclasses import dataclass
 
 @dataclass
 class ClosureRule:
-    """Represents a model closure rule."""
+    """Represents a model closure rule (always fixed to benchmark)."""
     variable: str
     indices: list[str]
-    multiplier: float
+    multiplier: float = 1.0  # Default to benchmark
 
 
 class ClosureRuleBuilder:
@@ -49,8 +49,8 @@ class ClosureRuleBuilder:
     def __init__(self) -> None:
         self.rules: list[ClosureRule] = []
 
-    def add_rule(self, variable: str, indices: list[str], multiplier: float) -> None:
-        self.rules.append(ClosureRule(variable, indices, multiplier))
+    def add_rule(self, variable: str, indices: list[str]) -> None:
+        self.rules.append(ClosureRule(variable, indices))
 
     def remove_rule(self, index: int) -> None:
         if 0 <= index < len(self.rules):
@@ -58,7 +58,7 @@ class ClosureRuleBuilder:
 
     def list_rules(self) -> list[str]:
         return [
-            f"{i}: {r.variable}[{','.join(r.indices) if r.indices else 'all'}] = {r.multiplier} × benchmark"
+            f"{i}: fix {r.variable}[{','.join(r.indices) if r.indices else 'all'}] = benchmark"
             for i, r in enumerate(self.rules)
         ]
 
@@ -354,9 +354,8 @@ while True:
     if var_name.lower() == "done" or var_name == "":
         break
     idx_text = input("Indices (comma separated, blank for all): ").strip()
-    value = float(input("Fixed value: ").strip())
     idx_list = [i.strip() for i in idx_text.split(",") if i.strip()]
-    closure_builder.add_rule(var_name, idx_list, value)
+    closure_builder.add_rule(var_name, idx_list)
     print("Current closure rules:")
     for rule in closure_builder.list_rules():
         print(f"\t{rule}")
