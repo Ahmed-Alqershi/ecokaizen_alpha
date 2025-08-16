@@ -3,7 +3,7 @@ export interface ModelTemplate {
   id: string;
   name: string;
   shortDescription: string;
-  type: 'simple' | 'standard' | 'cameroon' | 'korea' | 'saudi';
+  type: 'simple' | 'standard' | 'cameroon' | 'korea' | 'saudi' | 'mn1';
   sectors: string[];
   factors: string[];
   households: string[];
@@ -24,6 +24,18 @@ export interface SAM {
   data: number[][];
 }
 
+// MN1 model helpers
+export interface ClosureRule {
+  variable: string;
+  indices: string[];
+}
+
+export interface Shock {
+  target: string;
+  indices: string[];
+  multiplier: number;
+}
+
 // Model Parameters
 export interface ModelParameters {
   alpha: number[]; // share parameter in utility function
@@ -31,6 +43,14 @@ export interface ModelParameters {
   tariff?: number[];
   indirectTax?: number[];
   incomeTax?: number[];
+  // MN1 extensions
+  prices?: number[];
+  wage?: number;
+  beta?: number[];
+  A?: number[];
+  closureRules?: ClosureRule[];
+  shocks?: Shock[];
+  calibration?: 'auto' | 'manual';
 }
 
 // Model Results
