@@ -65,6 +65,11 @@ const ProjectsPage = () => {
     loadProjects();
   };
 
+  const handleRestore = async (id: number) => {
+    await updateProjectStatus(username, id, 'open');
+    loadProjects();
+  };
+
   const handleOpen = (id: number) => {
     navigate(`/projects/${id}`);
   };
@@ -106,7 +111,7 @@ const ProjectsPage = () => {
                 <option value="name">Name</option>
               </select>
               <button
-                className="ml-1 p-1 text-sm"
+                className="ml-0 p-1 text-sm"
                 onClick={toggleSortOrder}
                 aria-label="Toggle sort order"
               >
@@ -139,14 +144,18 @@ const ProjectsPage = () => {
               <div>
                 <div className="flex items-center">
                   <h2 className="text-lg font-semibold">{p.name}</h2>
-                  <span className="ml-2 bg-success text-white text-xs px-2 py-1 rounded">
+                  <span
+                    className={`ml-2 text-white text-xs px-2 py-1 rounded ${
+                      p.status === 'archived' ? 'bg-red-800' : 'bg-green-800'
+                    }`}
+                  >
                     {p.status === 'archived' ? 'Archived' : 'Active'}
                   </span>
                 </div>
                 <p className="text-sm text-darkgray/70">Created on {formatDate(p.created_at)}</p>
                 <p className="text-sm text-darkgray/70">Updated on {formatDate(p.updated_at)}</p>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <button
                   className="p-1 text-lg hover:opacity-80"
                   onClick={() => handleOpen(p.id)}
@@ -155,7 +164,16 @@ const ProjectsPage = () => {
                 >
                   📂
                 </button>
-                {p.status !== 'archived' && (
+                {p.status === 'archived' ? (
+                  <button
+                    className="p-1 text-lg hover:opacity-80"
+                    onClick={() => handleRestore(p.id)}
+                    title="Restore to Active"
+                    aria-label="Restore project"
+                  >
+                    ♻️
+                  </button>
+                ) : (
                   <button
                     className="p-1 text-lg hover:opacity-80"
                     onClick={() => handleArchive(p.id)}
