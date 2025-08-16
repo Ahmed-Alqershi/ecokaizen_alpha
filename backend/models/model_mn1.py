@@ -38,10 +38,9 @@ from dataclasses import dataclass
 @dataclass
 class ClosureRule:
     """Represents a model closure rule."""
-
     variable: str
     indices: list[str]
-    value: float
+    multiplier: float
 
 
 class ClosureRuleBuilder:
@@ -50,8 +49,8 @@ class ClosureRuleBuilder:
     def __init__(self) -> None:
         self.rules: list[ClosureRule] = []
 
-    def add_rule(self, variable: str, indices: list[str], value: float) -> None:
-        self.rules.append(ClosureRule(variable, indices, value))
+    def add_rule(self, variable: str, indices: list[str], multiplier: float) -> None:
+        self.rules.append(ClosureRule(variable, indices, multiplier))
 
     def remove_rule(self, index: int) -> None:
         if 0 <= index < len(self.rules):
@@ -59,25 +58,44 @@ class ClosureRuleBuilder:
 
     def list_rules(self) -> list[str]:
         return [
-            f"{i}: {r.variable}[{','.join(r.indices) if r.indices else 'all'}] = {r.value}"
+            f"{i}: {r.variable}[{','.join(r.indices) if r.indices else 'all'}] = {r.multiplier} × benchmark"
             for i, r in enumerate(self.rules)
         ]
 
-    def apply(self, var_map: dict[str, Variable]) -> None:
+    def apply(self, var_map: dict[str, Variable | Parameter], benchmarks: dict[str, Parameter]) -> None:
         for rule in self.rules:
-            var = var_map.get(rule.variable)
-            if var is None:
+            obj = var_map.get(rule.variable)
+
+            if obj is None:
+                print(f"⚠️ Warning: Variable or parameter '{rule.variable}' not found in model. Skipping.")
                 continue
-            if rule.indices:
-                var.fx[tuple(rule.indices)] = rule.value
-            else:
-                var.fx[...] = rule.value
+
+            is_variable = isinstance(obj, Variable)
+            benchmark = benchmarks.get(rule.variable) if is_variable else None
+
+            if is_variable and benchmark is None:
+                print(f"⚠️ Warning: Benchmark value for variable '{rule.variable}' not provided. Skipping.")
+                continue
+
+            try:
+                if rule.indices:
+                    index = tuple(rule.indices)
+                    if is_variable:
+                        obj.fx[index] = benchmark[index] * rule.multiplier
+                    else:
+                        obj[index] = obj[index] * rule.multiplier
+                else:
+                    if is_variable:
+                        obj.fx[...] = benchmark[...] * rule.multiplier
+                    else:
+                        obj[...] = obj[...] * rule.multiplier
+            except Exception as e:
+                print(f"❌ Error applying closure rule on '{rule.variable}': {e}")
 
 
 @dataclass
 class Shock:
     """Represents a shock to a parameter or variable."""
-
     target: str
     indices: list[str]
     multiplier: float
@@ -98,19 +116,40 @@ class ShockBuilder:
 
     def list_shocks(self) -> list[str]:
         return [
-            f"{i}: {s.target}[{','.join(s.indices) if s.indices else 'all'}] *= {s.multiplier}"
+            f"{i}: {s.target}[{','.join(s.indices) if s.indices else 'all'}] = {s.multiplier} × benchmark"
             for i, s in enumerate(self.shocks)
         ]
 
-    def apply(self, obj_map: dict[str, Parameter | Variable]) -> None:
+    def apply(self, obj_map: dict[str, Variable | Parameter], benchmarks: dict[str, Parameter]) -> None:
         for shock in self.shocks:
             obj = obj_map.get(shock.target)
+
             if obj is None:
+                print(f"⚠️ Warning: Target '{shock.target}' not found in model. Skipping.")
                 continue
-            if shock.indices:
-                obj[tuple(shock.indices)] = obj[tuple(shock.indices)] * shock.multiplier
-            else:
-                obj[...] = obj[...] * shock.multiplier
+
+            is_variable = isinstance(obj, Variable)
+            benchmark = benchmarks.get(shock.target) if is_variable else None
+
+            if is_variable and benchmark is None:
+                print(f"⚠️ Warning: Benchmark value for variable '{shock.target}' not provided. Skipping.")
+                continue
+
+            try:
+                if shock.indices:
+                    index = tuple(shock.indices)
+                    if is_variable:
+                        obj.fx[index] = benchmark[index] * shock.multiplier
+                    else:
+                        obj[index] = obj[index] * shock.multiplier
+                else:
+                    if is_variable:
+                        obj.fx[...] = benchmark[...] * shock.multiplier
+                    else:
+                        obj[...] = obj[...] * shock.multiplier
+            except Exception as e:
+                print(f"❌ Error applying shock on '{shock.target}': {e}")
+
 
 
 sam_path = input("Enter the path to your SAM Excel file (e.g., SAM_221.xls): ").strip()
@@ -335,8 +374,24 @@ var_map = {
     "P": P,
     "W": W,
     "LS": LS,
+    "BETA": BETA,
+    "A": A,
+    "ALPHA": ALPHA,
 }
-closure_builder.apply(var_map)
+
+benchmark_map = {
+    "XD": XDO,
+    "R": RO,
+    "PROFITOT": PROFITOTO,
+    "XS": XSO,
+    "LD": LDO,
+    "PROFIT": PROFITO,
+    "P": PO,
+    "W": WO,
+    "LS": LSO,
+}
+
+closure_builder.apply(var_map, benchmark_map)
 
 
 # Set the options for the model
@@ -378,7 +433,20 @@ obj_map = {
     "BETA": BETA,
     "ALPHA": ALPHA,
 }
-shock_builder.apply(obj_map)
+
+benchmark_map = {
+    "XD": XDO,
+    "R": RO,
+    "PROFITOT": PROFITOTO,
+    "XS": XSO,
+    "LD": LDO,
+    "PROFIT": PROFITO,
+    "P": PO,
+    "W": WO,
+    "LS": LSO,
+}
+
+shock_builder.apply(obj_map, benchmark_map)
 
 # Solve the model
 MOD221_CAL.solve(options=options)
