@@ -23,8 +23,8 @@ const Footer = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="/contact" className="text-sm text-darkgray/70 hover:text-primary">
-                    Contact
+                  <a href="/contact-us" className="text-sm text-darkgray/70 hover:text-primary">
+                    Contact Us
                   </a>
                 </li>
               </ul>

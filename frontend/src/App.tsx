@@ -7,9 +7,8 @@ import LoginPage from './screens/LoginPage';
 import SignupPage from './screens/SignupPage';
 import AboutPage from './screens/AboutPage';
 import BlogPage from './screens/BlogPage';
-import ContactPage from './screens/ContactPage';
-import RunHistoryPage from './screens/RunHistoryPage';
-import ProjectWizardPage from './screens/ProjectWizardPage';
+import ContactUsPage from './screens/ContactUsPage';
+import ProjectsPage from './screens/ProjectsPage';
 import './styles/index.css';
 
 const App = () => {
@@ -22,10 +21,9 @@ const App = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/about" element={<AboutPage />} />
-            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/contact-us" element={<ContactUsPage />} />
             <Route path="/model-builder" element={<ModelBuilderPage />} />
-            <Route path="/project-wizard" element={<ProjectWizardPage />} />
-            <Route path="/runs" element={<RunHistoryPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
           </Routes>

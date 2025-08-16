@@ -37,6 +37,30 @@ const Navbar = () => {
               >
                 Home
               </Link>
+              {username && (
+                <Link
+                  to="/model-builder"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    location.pathname === '/model-builder'
+                      ? 'border-primary text-darkgray'
+                      : 'border-transparent text-midgray hover:text-darkgray'
+                  }`}
+                >
+                  Model Builder
+                </Link>
+              )}
+              {username && (
+                <Link
+                  to="/projects"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    location.pathname === '/projects'
+                      ? 'border-primary text-darkgray'
+                      : 'border-transparent text-midgray hover:text-darkgray'
+                  }`}
+                >
+                  Projects
+                </Link>
+              )}
               <Link
                 to="/blog"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
@@ -58,51 +82,15 @@ const Navbar = () => {
                 About
               </Link>
               <Link
-                to="/contact"
+                to="/contact-us"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  location.pathname === '/contact'
+                  location.pathname === '/contact-us'
                     ? 'border-primary text-darkgray'
                     : 'border-transparent text-midgray hover:text-darkgray'
                 }`}
               >
-                Contact
+                Contact Us
               </Link>
-              {username && (
-                <Link
-                  to="/project-wizard"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    location.pathname === '/project-wizard'
-                      ? 'border-primary text-darkgray'
-                      : 'border-transparent text-midgray hover:text-darkgray'
-                  }`}
-                >
-                  New Project
-                </Link>
-              )}
-              {username && (
-                <Link
-                  to="/model-builder"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    location.pathname === '/model-builder'
-                      ? 'border-primary text-darkgray'
-                      : 'border-transparent text-midgray hover:text-darkgray'
-                  }`}
-                >
-                  Model Builder
-                </Link>
-              )}
-              {username && (
-                <Link
-                  to="/runs"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    location.pathname === '/runs'
-                      ? 'border-primary text-darkgray'
-                      : 'border-transparent text-midgray hover:text-darkgray'
-                  }`}
-                >
-                  Run History
-                </Link>
-              )}
             </div>
           </div>
           <div className="flex items-center">

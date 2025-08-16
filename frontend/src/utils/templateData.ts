@@ -17,6 +17,21 @@ const templates: ModelTemplate[] = [
     }
   },
   {
+    id: 'standard-cge',
+    name: 'Standard CGE Model',
+    shortDescription: 'Policy simulations, national-level planning, intermediate users',
+    type: 'standard',
+    sectors: ['AGR', 'MFG', 'SVC'],
+    factors: ['CAP', 'LAB', 'LAND'],
+    households: ['HOH'],
+    details: {
+      hasGovernment: true,
+      hasTrade: true,
+      hasInvestment: true,
+      description: 'Includes taxes, government, savings, investment, and foreign sector'
+    }
+  },
+  {
     id: 'cameroon-cge',
     name: 'Cameroon CGE Model',
     shortDescription: 'Sectoral studies, development planning, African economies',
@@ -59,36 +74,6 @@ const templates: ModelTemplate[] = [
       hasTrade: true,
       hasInvestment: true,
       description: 'Three sector Saudi economy with two household types.'
-    }
-  },
-  {
-    id: 'mn1-cge',
-    name: 'MN1 CGE Model',
-    shortDescription: 'Modular template with closure and shock builder',
-    type: 'mn1',
-    sectors: [],
-    factors: [],
-    households: [],
-    details: {
-      hasGovernment: false,
-      hasTrade: false,
-      hasInvestment: false,
-      description: 'Upload SAM, set benchmarks, and run custom shocks'
-    }
-  },
-  {
-    id: 'standard-cge',
-    name: 'Standard CGE Model',
-    shortDescription: 'Policy simulations, national-level planning, intermediate users',
-    type: 'standard',
-    sectors: ['AGR', 'MFG', 'SVC'],
-    factors: ['CAP', 'LAB', 'LAND'],
-    households: ['HOH'],
-    details: {
-      hasGovernment: true,
-      hasTrade: true,
-      hasInvestment: true,
-      description: 'Includes taxes, government, savings, investment, and foreign sector'
     }
   }
 ];
