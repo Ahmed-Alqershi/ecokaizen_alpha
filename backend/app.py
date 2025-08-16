@@ -334,6 +334,16 @@ def solve_model():
                 print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
+        elif template_id == 'mn1-cge':
+            # Placeholder implementation for MN1 model integration
+            return jsonify({
+                'message': 'MN1 model execution placeholder',
+                'prices': params.get('prices'),
+                'wage': params.get('wage'),
+                'closureRules': params.get('closureRules', []),
+                'shocks': params.get('shocks', []),
+            })
+
         else:
             # For other templates (not implemented in MVP)
             return jsonify({

@@ -60,8 +60,22 @@ const templates: ModelTemplate[] = [
       hasInvestment: true,
       description: 'Three sector Saudi economy with two household types.'
     }
-  }
-  ,
+  },
+  {
+    id: 'mn1-cge',
+    name: 'MN1 CGE Model',
+    shortDescription: 'Modular template with closure and shock builder',
+    type: 'mn1',
+    sectors: [],
+    factors: [],
+    households: [],
+    details: {
+      hasGovernment: false,
+      hasTrade: false,
+      hasInvestment: false,
+      description: 'Upload SAM, set benchmarks, and run custom shocks'
+    }
+  },
   {
     id: 'standard-cge',
     name: 'Standard CGE Model',
