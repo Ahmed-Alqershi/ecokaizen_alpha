@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ModelParameters, ModelResults, SAM, ScenarioComparison } from './types';
+import { ModelParameters, ModelResults, SAM, ScenarioComparison, Project } from './types';
 
 const api = axios.create({
   baseURL: 'http://127.0.0.1:5002',
@@ -189,6 +189,23 @@ export const registerUser = async (
 export const loginUser = async (username: string, password: string) => {
   const response = await api.post('/login', { username, password });
   return response.data as { message: string; username: string; avatar: string };
+};
+
+export const createProject = async (
+  username: string | undefined,
+  name: string
+): Promise<Project | undefined> => {
+  if (!username) return;
+  const response = await api.post('/projects', { username, name });
+  return response.data as Project;
+};
+
+export const listProjects = async (
+  username: string | undefined
+): Promise<Project[]> => {
+  if (!username) return [] as Project[];
+  const response = await api.get('/projects', { params: { username } });
+  return response.data as Project[];
 };
 
 export default api;
