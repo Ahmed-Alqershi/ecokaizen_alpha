@@ -74,6 +74,19 @@ def init_db():
             """
         )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+
         conn.commit()
 
 
@@ -127,6 +140,36 @@ def delete_runs_for_user(user_id: int) -> None:
     with get_db_connection() as conn:
         conn.execute('DELETE FROM runs WHERE user_id=?', (user_id,))
         conn.commit()
+
+
+def insert_project(user_id: int, name: str) -> int:
+    with get_db_connection() as conn:
+        cur = conn.execute(
+            'INSERT INTO projects (user_id, name) VALUES (?, ?)',
+            (user_id, name),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def fetch_projects_for_user(user_id: int) -> list[Dict]:
+    with get_db_connection() as conn:
+        cur = conn.execute(
+            'SELECT id, name, created_at, updated_at FROM projects WHERE user_id=? ORDER BY created_at DESC',
+            (user_id,),
+        )
+        rows = cur.fetchall()
+        return [dict(row) for row in rows]
+
+
+def fetch_project(project_id: int) -> Optional[Dict]:
+    with get_db_connection() as conn:
+        cur = conn.execute(
+            'SELECT id, user_id, name, created_at, updated_at FROM projects WHERE id=?',
+            (project_id,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
 
 
 def send_contact_email(name: str, email: str, message: str):
@@ -488,6 +531,42 @@ def clear_runs():
 
     delete_runs_for_user(user_id)
     return jsonify({'message': 'Run history cleared'})
+
+
+@app.route('/projects', methods=['POST'])
+def create_project():
+    try:
+        data = parse_json_request(request)
+    except RequestValidationError as exc:
+        return jsonify({'error': exc.message}), exc.status_code
+
+    name = data.get('name')
+    user_id = data.get('userId')
+    username = data.get('username')
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    if not user_id or not name:
+        return jsonify({'error': 'Project name and valid userId or username required'}), 400
+
+    project_id = insert_project(user_id, name)
+    project = fetch_project(project_id)
+    return jsonify(project), 201
+
+
+@app.route('/projects', methods=['GET'])
+def list_projects_route():
+    username = request.args.get('username')
+    user_id = request.args.get('userId', type=int)
+
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    if not user_id:
+        return jsonify({'error': 'Valid userId or username required'}), 400
+
+    projects = fetch_projects_for_user(user_id)
+    return jsonify(projects)
 
 @app.route('/compare-scenarios', methods=['POST'])
 def compare_scenarios():
