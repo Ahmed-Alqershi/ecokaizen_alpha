@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { sendContactMessage } from '../utils/api';
 
-const ContactPage = () => {
+const ContactUsPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -59,4 +59,4 @@ const ContactPage = () => {
   );
 };
 
-export default ContactPage;
+export default ContactUsPage;
