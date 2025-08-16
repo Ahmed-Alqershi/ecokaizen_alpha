@@ -38,10 +38,10 @@ const HomePage = () => {
           Empower decision-making with economic simulations. No math required.
         </p>
         <Link
-          to={username ? '/model-builder' : '/signup'}
+          to={username ? '/project-wizard' : '/signup'}
           className="btn btn-gradient-outline text-lg py-3 px-8"
         >
-          {username ? 'Build Your Model' : 'Get Started'}
+          {username ? 'New Project' : 'Get Started'}
         </Link>
       </div>
 
