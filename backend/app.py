@@ -80,12 +80,19 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )
             """
         )
+
+        # ensure status column exists for older databases
+        cur = conn.execute("PRAGMA table_info(projects)")
+        columns = [row[1] for row in cur.fetchall()]
+        if 'status' not in columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'open'")
 
         conn.commit()
 
@@ -145,8 +152,8 @@ def delete_runs_for_user(user_id: int) -> None:
 def insert_project(user_id: int, name: str) -> int:
     with get_db_connection() as conn:
         cur = conn.execute(
-            'INSERT INTO projects (user_id, name) VALUES (?, ?)',
-            (user_id, name),
+            'INSERT INTO projects (user_id, name, status) VALUES (?, ?, ?)',
+            (user_id, name, 'open'),
         )
         conn.commit()
         return cur.lastrowid
@@ -155,7 +162,7 @@ def insert_project(user_id: int, name: str) -> int:
 def fetch_projects_for_user(user_id: int) -> list[Dict]:
     with get_db_connection() as conn:
         cur = conn.execute(
-            'SELECT id, name, created_at, updated_at FROM projects WHERE user_id=? ORDER BY created_at DESC',
+            'SELECT id, name, status, created_at, updated_at FROM projects WHERE user_id=? ORDER BY created_at DESC',
             (user_id,),
         )
         rows = cur.fetchall()
@@ -165,11 +172,20 @@ def fetch_projects_for_user(user_id: int) -> list[Dict]:
 def fetch_project(project_id: int) -> Optional[Dict]:
     with get_db_connection() as conn:
         cur = conn.execute(
-            'SELECT id, user_id, name, created_at, updated_at FROM projects WHERE id=?',
+            'SELECT id, user_id, name, status, created_at, updated_at FROM projects WHERE id=?',
             (project_id,),
         )
         row = cur.fetchone()
         return dict(row) if row else None
+
+
+def update_project_status(project_id: int, status: str) -> None:
+    with get_db_connection() as conn:
+        conn.execute(
+            'UPDATE projects SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+            (status, project_id),
+        )
+        conn.commit()
 
 
 def delete_project(project_id: int) -> None:
@@ -573,6 +589,34 @@ def list_projects_route():
 
     projects = fetch_projects_for_user(user_id)
     return jsonify(projects)
+
+
+@app.route('/projects/<int:project_id>', methods=['PATCH'])
+def update_project_route(project_id: int):
+    try:
+        data = parse_json_request(request)
+    except RequestValidationError as exc:
+        return jsonify({'error': exc.message}), exc.status_code
+
+    username = data.get('username')
+    user_id = data.get('userId')
+    if not user_id and username:
+        user_id = get_user_id(username)
+
+    if not user_id:
+        return jsonify({'error': 'Valid userId or username required'}), 400
+
+    project = fetch_project(project_id)
+    if not project or project['user_id'] != user_id:
+        return jsonify({'error': 'Project not found'}), 404
+
+    status = data.get('status')
+    if status not in ['open', 'archived']:
+        return jsonify({'error': 'Invalid status'}), 400
+
+    update_project_status(project_id, status)
+    project = fetch_project(project_id)
+    return jsonify(project)
 
 
 @app.route('/projects/<int:project_id>', methods=['DELETE'])
