@@ -193,10 +193,17 @@ export const loginUser = async (username: string, password: string) => {
 
 export const createProject = async (
   username: string | undefined,
-  name: string
+  name: string,
+  description?: string,
+  template?: string
 ): Promise<Project | undefined> => {
   if (!username) return;
-  const response = await api.post('/projects', { username, name });
+  const response = await api.post('/projects', {
+    username,
+    name,
+    description,
+    template,
+  });
   return response.data as Project;
 };
 

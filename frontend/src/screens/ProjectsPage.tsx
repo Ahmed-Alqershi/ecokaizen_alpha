@@ -10,6 +10,8 @@ const ProjectsPage = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newTemplate, setNewTemplate] = useState('A');
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'open' | 'archived'>('open');
@@ -26,19 +28,27 @@ const ProjectsPage = () => {
 
   const handleSave = async () => {
     if (!newName.trim()) return;
-    await createProject(username, newName.trim());
+    await createProject(
+      username,
+      newName.trim(),
+      newDescription.trim(),
+      newTemplate
+    );
     setShowModal(false);
     setNewName('');
+    setNewDescription('');
+    setNewTemplate('A');
     loadProjects();
   };
 
   const formatDate = (str: string) => {
     const d = new Date(str);
-    const date = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
-    const year = d.getFullYear();
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear().toString().slice(-2);
     const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return `${date} • ${year} - ${time}`;
-    };
+    return `${day}/${month}/${year} • ${time}`;
+  };
 
   const sortedProjects = [...projects].sort((a, b) => {
     if (sortBy === 'name') {
@@ -99,25 +109,23 @@ const ProjectsPage = () => {
             ))}
           </div>
           <div className="flex items-center justify-end mb-4 space-x-2">
+            <button
+              className="p-1 text-sm"
+              onClick={toggleSortOrder}
+              aria-label="Toggle sort order"
+            >
+              {sortOrder === 'asc' ? '▲' : '▼'}
+            </button>
             <label className="text-sm">Sort by:</label>
-            <div className="flex items-center">
-              <select
-                className="input text-sm w-40 px-2 py-1"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-              >
-                <option value="updated_at">Updated</option>
-                <option value="created_at">Created</option>
-                <option value="name">Name</option>
-              </select>
-              <button
-                className="ml-0 p-1 text-sm"
-                onClick={toggleSortOrder}
-                aria-label="Toggle sort order"
-              >
-                {sortOrder === 'asc' ? '▲' : '▼'}
-              </button>
-            </div>
+            <select
+              className="input text-sm w-40 px-2 py-1"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+            >
+              <option value="updated_at">Updated</option>
+              <option value="created_at">Created</option>
+              <option value="name">Name</option>
+            </select>
           </div>
         </>
       )}
@@ -137,63 +145,77 @@ const ProjectsPage = () => {
                 : p.status === 'archived'
             )
             .map((p) => (
-            <div
-              key={p.id}
-              className="card p-4 flex justify-between items-center border border-midgray shadow-sm"
-            >
-              <div>
-                <div className="flex items-center">
-                  <h2 className="text-lg font-semibold">{p.name}</h2>
-                  <span
-                    className={`ml-2 text-white text-xs px-2 py-1 rounded ${
-                      p.status === 'archived' ? 'bg-red-800' : 'bg-green-800'
-                    }`}
-                  >
-                    {p.status === 'archived' ? 'Archived' : 'Active'}
-                  </span>
+              <div
+                key={p.id}
+                className="card p-4 border border-midgray shadow-sm flex flex-col"
+              >
+                <div className="flex justify-between">
+                  <div>
+                    <div className="flex items-center">
+                      <h2 className="text-lg font-semibold">{p.name}</h2>
+                      <span
+                        className={`ml-2 inline-flex items-center text-white text-xs px-2 py-0.5 rounded ${
+                          p.status === 'archived' ? 'bg-red-800' : 'bg-green-800'
+                        }`}
+                      >
+                        {p.status === 'archived' ? 'Archived' : 'Active'}
+                      </span>
+                    </div>
+                    <p className="text-sm">
+                      <span className="font-bold">Description:</span> {p.description || ''}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-bold">Template:</span> {p.template}
+                    </p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <button
+                      className="p-1 text-lg hover:opacity-80"
+                      onClick={() => handleOpen(p.id)}
+                      title="Open Project"
+                      aria-label="Open project"
+                    >
+                      📂
+                    </button>
+                    {p.status === 'archived' ? (
+                      <button
+                        className="p-1 text-lg hover:opacity-80"
+                        onClick={() => handleRestore(p.id)}
+                        title="Restore to Active"
+                        aria-label="Restore project"
+                      >
+                        ♻️
+                      </button>
+                    ) : (
+                      <button
+                        className="p-1 text-lg hover:opacity-80"
+                        onClick={() => handleArchive(p.id)}
+                        title="Archive Project"
+                        aria-label="Archive project"
+                      >
+                        📥
+                      </button>
+                    )}
+                    <button
+                      className="p-1 text-lg text-danger hover:opacity-80"
+                      onClick={() => handleDelete(p.id)}
+                      title="Delete Project"
+                      aria-label="Delete project"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-darkgray/70">Created on {formatDate(p.created_at)}</p>
-                <p className="text-sm text-darkgray/70">Updated on {formatDate(p.updated_at)}</p>
+                <div className="mt-4 text-xs text-darkgray/70">
+                  <p>
+                    <span className="font-bold">Created on:</span> {formatDate(p.created_at)}
+                  </p>
+                  <p>
+                    <span className="font-bold">Updated on:</span> {formatDate(p.updated_at)}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <button
-                  className="p-1 text-lg hover:opacity-80"
-                  onClick={() => handleOpen(p.id)}
-                  title="Open Project"
-                  aria-label="Open project"
-                >
-                  📂
-                </button>
-                {p.status === 'archived' ? (
-                  <button
-                    className="p-1 text-lg hover:opacity-80"
-                    onClick={() => handleRestore(p.id)}
-                    title="Restore to Active"
-                    aria-label="Restore project"
-                  >
-                    ♻️
-                  </button>
-                ) : (
-                  <button
-                    className="p-1 text-lg hover:opacity-80"
-                    onClick={() => handleArchive(p.id)}
-                    title="Archive Project"
-                    aria-label="Archive project"
-                  >
-                    📥
-                  </button>
-                )}
-                <button
-                  className="p-1 text-lg text-danger hover:opacity-80"
-                  onClick={() => handleDelete(p.id)}
-                  title="Delete Project"
-                  aria-label="Delete project"
-                >
-                  🗑️
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
 
@@ -208,6 +230,22 @@ const ProjectsPage = () => {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
             />
+            <label className="block mb-2 text-sm font-medium">Description (optional)</label>
+            <textarea
+              className="input w-full mb-4"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+            />
+            <label className="block mb-2 text-sm font-medium">Template</label>
+            <select
+              className="input w-full mb-4"
+              value={newTemplate}
+              onChange={(e) => setNewTemplate(e.target.value)}
+            >
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+            </select>
             <div className="flex justify-end">
               <button className="btn btn-primary" onClick={handleSave}>
                 Save

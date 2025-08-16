@@ -144,6 +144,8 @@ export interface ScenarioComparison {
 export interface Project {
   id: number;
   name: string;
+  description?: string;
+  template?: string;
   status: 'open' | 'archived';
   created_at: string;
   updated_at: string;
