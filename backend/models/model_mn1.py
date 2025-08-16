@@ -32,6 +32,86 @@ from gamspy import ModelStatus
 
 from gamspy.math import rpower
 
+from dataclasses import dataclass
+
+
+@dataclass
+class ClosureRule:
+    """Represents a model closure rule."""
+
+    variable: str
+    indices: list[str]
+    value: float
+
+
+class ClosureRuleBuilder:
+    """Collects and applies closure rules to the model."""
+
+    def __init__(self) -> None:
+        self.rules: list[ClosureRule] = []
+
+    def add_rule(self, variable: str, indices: list[str], value: float) -> None:
+        self.rules.append(ClosureRule(variable, indices, value))
+
+    def remove_rule(self, index: int) -> None:
+        if 0 <= index < len(self.rules):
+            self.rules.pop(index)
+
+    def list_rules(self) -> list[str]:
+        return [
+            f"{i}: {r.variable}[{','.join(r.indices) if r.indices else 'all'}] = {r.value}"
+            for i, r in enumerate(self.rules)
+        ]
+
+    def apply(self, var_map: dict[str, Variable]) -> None:
+        for rule in self.rules:
+            var = var_map.get(rule.variable)
+            if var is None:
+                continue
+            if rule.indices:
+                var.fx[tuple(rule.indices)] = rule.value
+            else:
+                var.fx[...] = rule.value
+
+
+@dataclass
+class Shock:
+    """Represents a shock to a parameter or variable."""
+
+    target: str
+    indices: list[str]
+    multiplier: float
+
+
+class ShockBuilder:
+    """Collects and applies shocks to model components."""
+
+    def __init__(self) -> None:
+        self.shocks: list[Shock] = []
+
+    def add_shock(self, target: str, indices: list[str], multiplier: float) -> None:
+        self.shocks.append(Shock(target, indices, multiplier))
+
+    def remove_shock(self, index: int) -> None:
+        if 0 <= index < len(self.shocks):
+            self.shocks.pop(index)
+
+    def list_shocks(self) -> list[str]:
+        return [
+            f"{i}: {s.target}[{','.join(s.indices) if s.indices else 'all'}] *= {s.multiplier}"
+            for i, s in enumerate(self.shocks)
+        ]
+
+    def apply(self, obj_map: dict[str, Parameter | Variable]) -> None:
+        for shock in self.shocks:
+            obj = obj_map.get(shock.target)
+            if obj is None:
+                continue
+            if shock.indices:
+                obj[tuple(shock.indices)] = obj[tuple(shock.indices)] * shock.multiplier
+            else:
+                obj[...] = obj[...] * shock.multiplier
+
 
 sam_path = input("Enter the path to your SAM Excel file (e.g., SAM_221.xls): ").strip()
 if not sam_path:
@@ -228,9 +308,35 @@ LS.lo[consumers] = LSO[consumers] * 0.001
 
 
 # CLOSURE RULES
-# TODO: Ask the user if they want to set the closure rules
-# LS.fx[consumers.toList()[0]] = LSO[consumers.toList()[0]]
-# P.fx[inds.toList()[0]]  = 1
+closure_builder = ClosureRuleBuilder()
+print("\nDefine closure rules (type 'done' to finish):")
+while True:
+    var_name = input("Variable to fix (or 'done'): ").strip()
+    if var_name.lower() == "done" or var_name == "":
+        break
+    idx_text = input("Indices (comma separated, blank for all): ").strip()
+    value = float(input("Fixed value: ").strip())
+    idx_list = [i.strip() for i in idx_text.split(",") if i.strip()]
+    closure_builder.add_rule(var_name, idx_list, value)
+    print("Current closure rules:")
+    for rule in closure_builder.list_rules():
+        print(f"\t{rule}")
+    rem = input("Enter index to remove a rule or press Enter to continue: ").strip()
+    if rem:
+        closure_builder.remove_rule(int(rem))
+
+var_map = {
+    "XD": XD,
+    "R": R,
+    "PROFITOT": PROFITOT,
+    "XS": XS,
+    "LD": LD,
+    "PROFIT": PROFIT,
+    "P": P,
+    "W": W,
+    "LS": LS,
+}
+closure_builder.apply(var_map)
 
 
 # Set the options for the model
@@ -241,32 +347,38 @@ options = Options.fromGams({"ITERLIM": 10000, "RESLIM": 10000, "LIMCOL": 1, "LIM
 MOD221_CAL = Model(m, name="MOD221_CAL", problem="NLP", equations=m.getEquations(), sense="MIN", objective=OMEGA)
 
 # Apply shocks
+shock_builder = ShockBuilder()
+print("\nDefine shocks (type 'done' to finish):")
+while True:
+    target = input("Target parameter/variable (or 'done'): ").strip()
+    if target.lower() == "done" or target == "":
+        break
+    idx_text = input("Indices (comma separated, blank for all): ").strip()
+    mult = float(input("Multiplier (e.g., 1.1 for +10%): ").strip())
+    idx_list = [i.strip() for i in idx_text.split(",") if i.strip()]
+    shock_builder.add_shock(target, idx_list, mult)
+    print("Current shocks:")
+    for s in shock_builder.list_shocks():
+        print(f"\t{s}")
+    rem = input("Enter index to remove a shock or press Enter to continue: ").strip()
+    if rem:
+        shock_builder.remove_shock(int(rem))
 
-# SHOCK PARAMETERS
-SXD       = Parameter(m, name="SXD"      , domain=XD.domain    , description="Shock for Demand of goods by Consumers (volume)")
-SR        = Parameter(m, name="SR"       , domain=R.domain     , description="Shock for Income of consumers"                  )
-SPROFITOT = Parameter(m, name="SPROFITOT"                      , description="Shock for Total profit"                         )
-SXS       = Parameter(m, name="SXS"      , domain=XS.domain    , description="Shock for Supply of goods"                      )
-SLD       = Parameter(m, name="SLD"      , domain=LD.domain    , description="Shock for Labour demand of Firms (volume)"      )
-SPROFIT   = Parameter(m, name="SPROFIT"  , domain=PROFIT.domain, description="Shock for Profit of firms"                      )
-SP        = Parameter(m, name="SP"       , domain=P.domain     , description="Shock for Price of goods"                       )
-SW        = Parameter(m, name="SW"                             , description="Shock for Wage rate"                            )
-SLS       = Parameter(m, name="SLS"      , domain=LS.domain    , description="Shock for Labour endowment of Consumer A"       )
-
-# SXD.setRecords(
-#     np.array(
-#         [
-#             [1, 1],
-#             [1.1, 1]
-#         ]
-#     )
-# )
-
-# TODO: Ask the user for shocks
-
-# XD.fx[inds.toList()[1], consumers.toList()[0]] = XDO[inds.toList()[1], consumers.toList()[0]] * SXD[inds.toList()[1], consumers.toList()[0]]
-# LS.fx[consumers.toList()[0]] = LSO[[consumers.toList()[0]]]*1.1
-# A[inds.toList()[0], comms.toList()[0]] = A[inds.toList()[0], comms.toList()[0]] * 1.1
+obj_map = {
+    "XD": XD,
+    "R": R,
+    "PROFITOT": PROFITOT,
+    "XS": XS,
+    "LD": LD,
+    "PROFIT": PROFIT,
+    "P": P,
+    "W": W,
+    "LS": LS,
+    "A": A,
+    "BETA": BETA,
+    "ALPHA": ALPHA,
+}
+shock_builder.apply(obj_map)
 
 # Solve the model
 MOD221_CAL.solve(options=options)
