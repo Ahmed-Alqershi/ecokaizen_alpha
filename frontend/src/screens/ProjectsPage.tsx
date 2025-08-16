@@ -1,15 +1,18 @@
 import { useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { createProject, listProjects, deleteProject } from '../utils/api';
+import { createProject, listProjects, deleteProject, updateProjectStatus } from '../utils/api';
 import { Project } from '../utils/types';
 
 const ProjectsPage = () => {
   const { username } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filter, setFilter] = useState<'all' | 'open' | 'archived'>('open');
 
   const loadProjects = async () => {
     if (!username) return;
@@ -57,6 +60,15 @@ const ProjectsPage = () => {
     loadProjects();
   };
 
+  const handleArchive = async (id: number) => {
+    await updateProjectStatus(username, id, 'archived');
+    loadProjects();
+  };
+
+  const handleOpen = (id: number) => {
+    navigate(`/projects/${id}`);
+  };
+
   return (
     <div className="max-w-4xl mx-auto my-12 p-4">
       <div className="flex justify-between items-center mb-4">
@@ -67,27 +79,42 @@ const ProjectsPage = () => {
       </div>
 
       {projects.length > 0 && (
-        <div className="flex items-center justify-end mb-4 space-x-2">
-          <label className="text-sm">Sort by:</label>
-          <div className="flex items-center">
-            <select
-              className="input h-8 text-sm w-40"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-            >
-              <option value="updated_at">Updated</option>
-              <option value="created_at">Created</option>
-              <option value="name">Name</option>
-            </select>
-            <button
-              className="ml-1 p-1 text-sm"
-              onClick={toggleSortOrder}
-              aria-label="Toggle sort order"
-            >
-              {sortOrder === 'asc' ? '▲' : '▼'}
-            </button>
+        <>
+          <div className="flex space-x-4 mb-4">
+            {['all', 'open', 'archived'].map((t) => (
+              <button
+                key={t}
+                className={`pb-1 text-sm border-b-2 ${
+                  filter === t ? 'border-primary text-primary' : 'border-transparent text-darkgray/70'
+                }`}
+                onClick={() => setFilter(t as 'all' | 'open' | 'archived')}
+              >
+                {t === 'all' ? 'All' : t === 'open' ? 'Open' : 'Archived'}
+              </button>
+            ))}
           </div>
-        </div>
+          <div className="flex items-center justify-end mb-4 space-x-2">
+            <label className="text-sm">Sort by:</label>
+            <div className="flex items-center">
+              <select
+                className="input text-sm w-40 px-2 py-1"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+              >
+                <option value="updated_at">Updated</option>
+                <option value="created_at">Created</option>
+                <option value="name">Name</option>
+              </select>
+              <button
+                className="ml-1 p-1 text-sm"
+                onClick={toggleSortOrder}
+                aria-label="Toggle sort order"
+              >
+                {sortOrder === 'asc' ? '▲' : '▼'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {projects.length === 0 ? (
@@ -96,7 +123,15 @@ const ProjectsPage = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {sortedProjects.map((p) => (
+          {sortedProjects
+            .filter((p) =>
+              filter === 'all'
+                ? true
+                : filter === 'open'
+                ? p.status !== 'archived'
+                : p.status === 'archived'
+            )
+            .map((p) => (
             <div
               key={p.id}
               className="card p-4 flex justify-between items-center border border-midgray shadow-sm"
@@ -105,17 +140,35 @@ const ProjectsPage = () => {
                 <div className="flex items-center">
                   <h2 className="text-lg font-semibold">{p.name}</h2>
                   <span className="ml-2 bg-success text-white text-xs px-2 py-1 rounded">
-                    Active
+                    {p.status === 'archived' ? 'Archived' : 'Active'}
                   </span>
                 </div>
                 <p className="text-sm text-darkgray/70">Created on {formatDate(p.created_at)}</p>
                 <p className="text-sm text-darkgray/70">Updated on {formatDate(p.updated_at)}</p>
               </div>
               <div className="flex items-center space-x-2">
-                <button className="btn btn-primary">Open</button>
                 <button
-                  className="text-danger hover:text-danger/80"
+                  className="p-1 text-lg hover:opacity-80"
+                  onClick={() => handleOpen(p.id)}
+                  title="Open Project"
+                  aria-label="Open project"
+                >
+                  📂
+                </button>
+                {p.status !== 'archived' && (
+                  <button
+                    className="p-1 text-lg hover:opacity-80"
+                    onClick={() => handleArchive(p.id)}
+                    title="Archive Project"
+                    aria-label="Archive project"
+                  >
+                    📥
+                  </button>
+                )}
+                <button
+                  className="p-1 text-lg text-danger hover:opacity-80"
                   onClick={() => handleDelete(p.id)}
+                  title="Delete Project"
                   aria-label="Delete project"
                 >
                   🗑️

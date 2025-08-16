@@ -208,6 +208,19 @@ export const listProjects = async (
   return response.data as Project[];
 };
 
+export const updateProjectStatus = async (
+  username: string | undefined,
+  projectId: number,
+  status: 'open' | 'archived'
+): Promise<Project | undefined> => {
+  if (!username) return;
+  const response = await api.patch(`/projects/${projectId}`, {
+    username,
+    status,
+  });
+  return response.data as Project;
+};
+
 export const deleteProject = async (
   username: string | undefined,
   projectId: number
