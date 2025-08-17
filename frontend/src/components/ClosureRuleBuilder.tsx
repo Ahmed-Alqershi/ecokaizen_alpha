@@ -66,7 +66,7 @@ const ClosureRuleBuilder = ({ rules, goods, consumers, onAdd, onRemove }: Props)
         <button
           type="button"
           onClick={handleAdd}
-          className="bg-blue-500 text-white px-2 py-1"
+          className="btn btn-primary"
         >
           Add
         </button>

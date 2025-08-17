@@ -128,7 +128,6 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
       // Refresh grid if API is available
       if (gridApi) {
         setTimeout(() => {
-          gridApi.sizeColumnsToFit();
           gridApi.refreshCells({ force: true });
         }, 0);
       }
@@ -164,7 +163,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
       // Resize columns so the grid stays full width after edits
       if (gridApi) {
         setTimeout(() => {
-          gridApi.sizeColumnsToFit();
+          gridApi.refreshCells({ force: true });
         }, 0);
       }
     },
@@ -179,8 +178,6 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
     // Use setTimeout to give the grid time to render before sizing columns
     setTimeout(() => {
       if (params.api) {
-        params.api.sizeColumnsToFit();
-
         // Force a redraw to ensure columns are displayed properly
         params.api.redrawRows();
       }
@@ -190,7 +187,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
   // Ensure columns fit whenever the grid size changes
   const onGridSizeChanged = useCallback(() => {
     if (gridApi) {
-      gridApi.sizeColumnsToFit();
+      gridApi.refreshCells({ force: true });
     }
   }, [gridApi]);
 
@@ -198,7 +195,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
   useEffect(() => {
     if (gridApi) {
       setTimeout(() => {
-        gridApi.sizeColumnsToFit();
+        gridApi.refreshCells({ force: true });
       }, 0);
     }
   }, [rowData, gridApi]);
@@ -215,7 +212,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
   return (
     <div className="w-full">
       <div
-        className="ag-theme-alpine w-full max-h-[60vh] border border-midgray overflow-auto"
+        className="ag-theme-alpine w-full max-h-[60vh] border border-midgray shadow-sm overflow-x-auto"
       >
         {!sam || !sam.entries || sam.entries.length === 0 ? (
           <div className="flex flex-col h-full">
