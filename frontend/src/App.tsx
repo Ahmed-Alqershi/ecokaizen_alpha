@@ -9,6 +9,7 @@ import AboutPage from './screens/AboutPage';
 import BlogPage from './screens/BlogPage';
 import ContactUsPage from './screens/ContactUsPage';
 import ProjectsPage from './screens/ProjectsPage';
+import ProjectBuilderPage from './screens/ProjectBuilderPage';
 import './styles/index.css';
 
 const App = () => {
@@ -23,6 +24,7 @@ const App = () => {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact-us" element={<ContactUsPage />} />
             <Route path="/model-builder" element={<ModelBuilderPage />} />
+            <Route path="/projects/:projectId/builder" element={<ProjectBuilderPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />

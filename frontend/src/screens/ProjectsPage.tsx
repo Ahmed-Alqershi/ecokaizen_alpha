@@ -62,7 +62,7 @@ const ProjectsPage = () => {
     }
     if (!valid) return;
 
-    await createProject(
+    const project = await createProject(
       username,
       newName.trim(),
       newDescription.trim(),
@@ -74,7 +74,11 @@ const ProjectsPage = () => {
     setNewTemplate('');
     setNameError('');
     setTemplateError('');
-    loadProjects();
+    if (project && newTemplate === 'A') {
+      navigate(`/projects/${project.id}/builder`);
+    } else {
+      loadProjects();
+    }
   };
 
   const formatDate = (str: string) => {
@@ -117,14 +121,17 @@ const ProjectsPage = () => {
   };
 
   const handleOpen = (id: number) => {
-    navigate(`/projects/${id}`);
+    navigate(`/projects/${id}/builder`);
   };
 
   return (
     <div className="max-w-4xl mx-auto my-12 p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Projects</h1>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button
+          className="btn bg-[#2F3A4A] text-white hover:bg-[#2F3A4A]/90"
+          onClick={() => setShowModal(true)}
+        >
           New Project
         </button>
       </div>
