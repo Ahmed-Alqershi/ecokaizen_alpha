@@ -4,6 +4,12 @@ import { AuthContext } from '../contexts/AuthContext';
 import { createProject, listProjects, deleteProject, updateProjectStatus } from '../utils/api';
 import { Project } from '../utils/types';
 import TemplateDropdown from '../components/TemplateDropdown';
+import {
+  FolderOpenIcon,
+  ArchiveBoxArrowDownIcon,
+  ArrowPathIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 
 const ProjectsPage = () => {
   const { username } = useContext(AuthContext);
@@ -195,44 +201,46 @@ const ProjectsPage = () => {
                       <span className="font-bold">Description:</span> {p.description || ''}
                     </p>
                     <p className="text-sm">
-                      <span className="font-bold">Template:</span> {p.template}
+                      <span className="font-bold">Template:</span> {
+                        templates.find((t) => t.id === p.template)?.name || p.template
+                      }
                     </p>
                   </div>
                   <div className="flex items-start space-x-3">
                     <button
-                      className="p-1 text-lg hover:opacity-80"
+                      className="p-1 hover:opacity-80"
                       onClick={() => handleOpen(p.id)}
                       title="Open Project"
                       aria-label="Open project"
                     >
-                      📂
+                      <FolderOpenIcon className="w-5 h-5 text-[#2F3A4A]" />
                     </button>
                     {p.status === 'archived' ? (
                       <button
-                        className="p-1 text-lg hover:opacity-80"
+                        className="p-1 hover:opacity-80"
                         onClick={() => handleRestore(p.id)}
                         title="Restore to Active"
                         aria-label="Restore project"
                       >
-                        ♻️
+                        <ArrowPathIcon className="w-5 h-5 text-[#2F3A4A]" />
                       </button>
                     ) : (
                       <button
-                        className="p-1 text-lg hover:opacity-80"
+                        className="p-1 hover:opacity-80"
                         onClick={() => handleArchive(p.id)}
                         title="Archive Project"
                         aria-label="Archive project"
                       >
-                        📥
+                        <ArchiveBoxArrowDownIcon className="w-5 h-5 text-[#2F3A4A]" />
                       </button>
                     )}
                     <button
-                      className="p-1 text-lg text-danger hover:opacity-80"
+                      className="p-1 hover:opacity-80"
                       onClick={() => handleDelete(p.id)}
                       title="Delete Project"
                       aria-label="Delete project"
                     >
-                      🗑️
+                      <TrashIcon className="w-5 h-5 text-[#2F3A4A]" />
                     </button>
                   </div>
                 </div>
@@ -291,7 +299,13 @@ const ProjectsPage = () => {
                   <p className="mt-1 text-xs text-danger">{templateError}</p>
                 )}
               </div>
-              <div className="pt-2 text-center">
+              <div className="pt-2 flex space-x-2">
+                <button
+                  className="btn bg-midgray text-darkgray hover:bg-midgray/80"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancel
+                </button>
                 <button
                   className="btn bg-[#2F3A4A] hover:bg-[#3b4759] text-white"
                   onClick={handleSave}

@@ -44,7 +44,7 @@ const TemplateDropdown = ({ templates, value, onChange, error }: TemplateDropdow
           {templates.map((t) => (
             <div
               key={t.id}
-              className="p-2 hover:bg-neutral cursor-pointer"
+              className="p-2 cursor-pointer transition-colors hover:bg-primary/10 hover:shadow"
               onClick={() => {
                 onChange(t.id);
                 setOpen(false);
