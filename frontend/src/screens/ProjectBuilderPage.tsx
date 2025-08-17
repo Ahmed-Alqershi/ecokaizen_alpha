@@ -268,7 +268,7 @@ const ProjectBuilderPage = () => {
 
   return (
     <div
-      className="max-w-2xl mx-auto my-12 p-4 space-y-8"
+      className="w-full max-w-6xl mx-auto my-12 p-4 space-y-8"
       data-project-id={projectId}
     >
       <div className="bg-[#2F3A4A] text-white rounded-lg p-6 text-center shadow-lg">
@@ -673,9 +673,35 @@ const ProjectBuilderPage = () => {
           <button
             onClick={handleSolve}
             disabled={solving}
-            className="btn bg-primary text-white"
+            className="btn btn-primary flex items-center justify-center"
           >
-            {solving ? 'Solving your model...' : 'Solve Model'}
+            {solving ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"
+                  ></path>
+                </svg>
+                Solving your model...
+              </>
+            ) : (
+              'Solve Model'
+            )}
           </button>
           {report && (
             <div className="mt-4 space-y-4">

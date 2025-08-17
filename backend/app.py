@@ -409,15 +409,18 @@ def solve_model():
                 print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
-        elif template_id == 'mn1-cge':
-            # Placeholder implementation for MN1 model integration
-            return jsonify({
-                'message': 'MN1 model execution placeholder',
-                'prices': params.get('prices'),
-                'wage': params.get('wage'),
-                'closureRules': params.get('closureRules', []),
-                'shocks': params.get('shocks', []),
-            })
+        elif template_id in ('mn1', 'mn1-cge'):
+            try:
+                from models.mn1_wrapper import solve_mn1
+
+                results = solve_mn1(params, sam)
+                return jsonify(results)
+            except Exception as mn1_error:
+                error_message = f"Error solving MN1 model: {mn1_error}"
+                stack_trace = traceback.format_exc()
+                print(error_message)
+                print(stack_trace)
+                return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         else:
             # For other templates (not implemented in MVP)
