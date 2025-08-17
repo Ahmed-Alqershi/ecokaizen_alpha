@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { createProject, listProjects, deleteProject, updateProjectStatus } from '../utils/api';
 import { Project } from '../utils/types';
+import TemplateDropdown from '../components/TemplateDropdown';
 
 const ProjectsPage = () => {
   const { username } = useContext(AuthContext);
@@ -11,7 +12,9 @@ const ProjectsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newTemplate, setNewTemplate] = useState('A');
+  const [newTemplate, setNewTemplate] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [templateError, setTemplateError] = useState('');
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'open' | 'archived'>('open');
@@ -22,6 +25,12 @@ const ProjectsPage = () => {
       name: 'Standard m×n×1 Template',
       description:
         'A simplified CGE model template that supports m sectors, n household groups, two production factors (Labor and Capital), and no government or external sector.'
+    },
+    {
+      id: 'B',
+      name: 'Extended Economy Template',
+      description:
+        'Includes government, trade flows, and additional production factors for richer policy simulations.'
     }
   ];
 
@@ -36,7 +45,17 @@ const ProjectsPage = () => {
   }, [username]);
 
   const handleSave = async () => {
-    if (!newName.trim()) return;
+    let valid = true;
+    if (!newName.trim()) {
+      setNameError('Project name is required');
+      valid = false;
+    }
+    if (!newTemplate) {
+      setTemplateError('Template is required');
+      valid = false;
+    }
+    if (!valid) return;
+
     await createProject(
       username,
       newName.trim(),
@@ -46,7 +65,9 @@ const ProjectsPage = () => {
     setShowModal(false);
     setNewName('');
     setNewDescription('');
-    setNewTemplate('A');
+    setNewTemplate('');
+    setNameError('');
+    setTemplateError('');
     loadProjects();
   };
 
@@ -228,18 +249,24 @@ const ProjectsPage = () => {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="card w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
-            <h2 className="text-xl font-bold mb-6">New Project</h2>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-8">
+            <h2 className="text-2xl font-semibold mb-6">New Project</h2>
+            <div className="space-y-6">
               <div>
                 <label className="block mb-1 text-sm font-semibold">Project Name</label>
                 <input
                   type="text"
-                  className="input w-full"
+                  className={`input w-full ${nameError ? 'border-danger focus:ring-danger' : ''}`}
                   value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  onChange={(e) => {
+                    setNewName(e.target.value);
+                    if (nameError) setNameError('');
+                  }}
                 />
+                {nameError && (
+                  <p className="mt-1 text-xs text-danger">{nameError}</p>
+                )}
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">Description (optional)</label>
@@ -251,25 +278,27 @@ const ProjectsPage = () => {
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">Template</label>
-                <select
-                  className="input w-full"
+                <TemplateDropdown
+                  templates={templates}
                   value={newTemplate}
-                  onChange={(e) => setNewTemplate(e.target.value)}
-                >
-                  {templates.map((t) => (
-                    <option
-                      key={t.id}
-                      value={t.id}
-                      title={t.description}
-                    >
-                      {`${t.name} — ${t.description}`}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => {
+                    setNewTemplate(val);
+                    if (templateError) setTemplateError('');
+                  }}
+                  error={!!templateError}
+                />
+                {templateError && (
+                  <p className="mt-1 text-xs text-danger">{templateError}</p>
+                )}
               </div>
-              <button className="btn btn-primary w-full" onClick={handleSave}>
-                Save
-              </button>
+              <div className="pt-2 text-center">
+                <button
+                  className="btn bg-[#2F3A4A] hover:bg-[#3b4759] text-white"
+                  onClick={handleSave}
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
