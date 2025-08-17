@@ -229,41 +229,45 @@ const ProjectsPage = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="card w-full max-w-md p-6">
-            <h2 className="text-xl font-bold mb-4">New Project</h2>
-            <label className="block mb-2 text-sm font-medium">Project Name</label>
-            <input
-              type="text"
-              className="input w-full mb-4"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
-            <label className="block mb-2 text-sm font-medium">Description (optional)</label>
-            <textarea
-              className="input w-full mb-4"
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-            />
-            <label className="block mb-2 text-sm font-medium">Template</label>
-            <select
-              className="input w-full mb-1"
-              value={newTemplate}
-              onChange={(e) => setNewTemplate(e.target.value)}
-            >
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-sm font-semibold">
-              {templates.find((t) => t.id === newTemplate)?.name}
-            </p>
-            <p className="text-xs text-darkgray/70 mb-4">
-              {templates.find((t) => t.id === newTemplate)?.description}
-            </p>
-            <div className="flex justify-end">
-              <button className="btn btn-primary" onClick={handleSave}>
+          <div className="card w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
+            <h2 className="text-xl font-bold mb-6">New Project</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block mb-1 text-sm font-semibold">Project Name</label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-semibold">Description (optional)</label>
+                <textarea
+                  className="input w-full"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-semibold">Template</label>
+                <select
+                  className="input w-full"
+                  value={newTemplate}
+                  onChange={(e) => setNewTemplate(e.target.value)}
+                >
+                  {templates.map((t) => (
+                    <option
+                      key={t.id}
+                      value={t.id}
+                      title={t.description}
+                    >
+                      {`${t.name} — ${t.description}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button className="btn btn-primary w-full" onClick={handleSave}>
                 Save
               </button>
             </div>
