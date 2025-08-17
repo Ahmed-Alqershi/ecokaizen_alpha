@@ -16,6 +16,15 @@ const ProjectsPage = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'open' | 'archived'>('open');
 
+  const templates = [
+    {
+      id: 'A',
+      name: 'Standard m×n×1 Template',
+      description:
+        'A simplified CGE model template that supports m sectors, n household groups, two production factors (Labor and Capital), and no government or external sector.'
+    }
+  ];
+
   const loadProjects = async () => {
     if (!username) return;
     const data = await listProjects(username);
@@ -151,7 +160,7 @@ const ProjectsPage = () => {
               >
                 <div className="flex justify-between">
                   <div>
-                    <div className="flex items-center">
+                    <div className="flex items-baseline">
                       <h2 className="text-lg font-semibold">{p.name}</h2>
                       <span
                         className={`ml-2 inline-flex items-center text-white text-xs px-2 py-0.5 rounded ${
@@ -208,9 +217,8 @@ const ProjectsPage = () => {
                 </div>
                 <div className="mt-4 text-xs text-darkgray/70">
                   <p>
-                    <span className="font-bold">Created on:</span> {formatDate(p.created_at)}
-                  </p>
-                  <p>
+                    <span className="font-bold">Created on:</span> {formatDate(p.created_at)}{' '}
+                    <span className="mx-2">—</span>
                     <span className="font-bold">Updated on:</span> {formatDate(p.updated_at)}
                   </p>
                 </div>
@@ -238,14 +246,22 @@ const ProjectsPage = () => {
             />
             <label className="block mb-2 text-sm font-medium">Template</label>
             <select
-              className="input w-full mb-4"
+              className="input w-full mb-1"
               value={newTemplate}
               onChange={(e) => setNewTemplate(e.target.value)}
             >
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
             </select>
+            <p className="mt-1 text-sm font-semibold">
+              {templates.find((t) => t.id === newTemplate)?.name}
+            </p>
+            <p className="text-xs text-darkgray/70 mb-4">
+              {templates.find((t) => t.id === newTemplate)?.description}
+            </p>
             <div className="flex justify-end">
               <button className="btn btn-primary" onClick={handleSave}>
                 Save
