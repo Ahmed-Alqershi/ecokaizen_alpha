@@ -1,7 +1,11 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import FileUploader from '../components/FileUploader';
+import SAMTable from '../components/SAMTable';
+import { exportSamToCsv, exportSamToExcel } from '../utils/samUtils';
 import { SAM } from '../utils/types';
+
+const factorNames = ['LAB', 'CAP'];
 
 const ProjectBuilderPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -11,9 +15,21 @@ const ProjectBuilderPage = () => {
   const [consumerNames, setConsumerNames] = useState<string[]>(['HH1']);
   const [goodsPrices, setGoodsPrices] = useState<number[]>([1, 1]);
   const [wageRate, setWageRate] = useState(1);
-  const factorNames = ['LAB', 'CAP'];
   const [useSamNames, setUseSamNames] = useState(true);
-  const [sam, setSam] = useState<SAM | null>(null);
+  const [samSectionOpen, setSamSectionOpen] = useState(true);
+  const [benchmarkSectionOpen, setBenchmarkSectionOpen] = useState(true);
+  const createEmptySam = (goods: string[], factors: string[], households: string[]): SAM => {
+    const entries = [...goods, ...factors, ...households];
+    const size = entries.length;
+    return {
+      entries,
+      goods,
+      factors,
+      households,
+      data: Array.from({ length: size }, () => Array(size).fill(0)),
+    };
+  };
+  const [sam, setSam] = useState<SAM>(() => createEmptySam(goodsNames, factorNames, consumerNames));
   const [samError, setSamError] = useState('');
   const [goodsError, setGoodsError] = useState('');
   const [consumerError, setConsumerError] = useState('');
@@ -37,7 +53,6 @@ const ProjectBuilderPage = () => {
   }, [consumers]);
 
   useEffect(() => {
-    if (!sam) return;
     const expected = industries + factorNames.length + consumers;
     if (
       sam.data.length !== expected ||
@@ -50,6 +65,23 @@ const ProjectBuilderPage = () => {
       setSamError('');
     }
   }, [sam, industries, consumers]);
+
+  useEffect(() => {
+    setSam((prev) => {
+      const entries = [...goodsNames, ...factorNames, ...consumerNames];
+      const size = entries.length;
+      const data = Array.from({ length: size }, (_, i) =>
+        Array.from({ length: size }, (_, j) => prev.data?.[i]?.[j] ?? 0)
+      );
+      return {
+        entries,
+        goods: goodsNames,
+        factors: factorNames,
+        households: consumerNames,
+        data,
+      };
+    });
+  }, [goodsNames, consumerNames]);
 
   const handleGoodsInput = (value: string) => {
     const names = value.split(',').map((n) => n.trim()).filter(Boolean);
@@ -81,6 +113,31 @@ const ProjectBuilderPage = () => {
     setGoodsPrices((prev) => adjustPriceLength(prev, industries));
   }, [industries]);
 
+  const handleDownloadCsv = () => {
+    const csv = exportSamToCsv(sam);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'sam.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadExcel = async () => {
+    const blob = await exportSamToExcel(sam);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'sam.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div
       className="max-w-2xl mx-auto my-12 p-4 space-y-8"
@@ -96,10 +153,16 @@ const ProjectBuilderPage = () => {
       </div>
 
       <section>
-        <h2 className="text-xl font-semibold text-[#2F3A4A] mb-4">
-          1. SAM Setup
-        </h2>
-        <div className="bg-white p-6 rounded-lg shadow-md space-y-6">
+        <div
+          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
+          onClick={() => setSamSectionOpen(!samSectionOpen)}
+        >
+          <span className="mr-2">{samSectionOpen ? '▼' : '►'}</span>
+          <h2 className="text-xl font-semibold">1. SAM Setup</h2>
+        </div>
+        <div
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${samSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+        >
           <div>
             <label className="block mb-2 font-medium">Upload SAM</label>
             <FileUploader
@@ -157,11 +220,11 @@ const ProjectBuilderPage = () => {
             </label>
           </div>
 
-      {!useSamNames && (
-        <div className="space-y-4">
-          <div>
-            <label className="block mb-1 font-medium">
-              Industry Names (comma separated)
+          {!useSamNames && (
+            <div className="space-y-4">
+              <div>
+                <label className="block mb-1 font-medium">
+                  Industry Names (comma separated)
                 </label>
                 <input
                   type="text"
@@ -190,17 +253,44 @@ const ProjectBuilderPage = () => {
                 {consumerError && (
                   <p className="mt-1 text-xs text-danger">{consumerError}</p>
                 )}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium">SAM Editor</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDownloadCsv}
+                  className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                >
+                  Download CSV
+                </button>
+                <button
+                  onClick={handleDownloadExcel}
+                  className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                >
+                  Download Excel
+                </button>
+              </div>
+            </div>
+            <SAMTable sam={sam} onChange={setSam} />
           </div>
         </div>
-      )}
-    </div>
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold text-[#2F3A4A] mb-4">
-          2. Benchmark Prices
-        </h2>
-        <div className="bg-white p-6 rounded-lg shadow-md space-y-6">
+        <div
+          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
+          onClick={() => setBenchmarkSectionOpen(!benchmarkSectionOpen)}
+        >
+          <span className="mr-2">{benchmarkSectionOpen ? '▼' : '►'}</span>
+          <h2 className="text-xl font-semibold">2. Benchmark Prices</h2>
+        </div>
+        <div
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${benchmarkSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+        >
           <div>
             <label className="block mb-2 font-medium">Price of goods (PO)</label>
             <table className="w-full text-left">
