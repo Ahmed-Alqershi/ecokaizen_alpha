@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useReducer, useEffect, useCallback, useState } from 'react';
 import FileUploader from '../components/FileUploader';
 import SAMTable from '../components/SAMTable';
 import ClosureRuleBuilder from '../components/ClosureRuleBuilder';
@@ -9,33 +9,100 @@ import { SAM, ClosureRule, Shock, ModelParameters } from '../utils/types';
 import { solveModel } from '../utils/api';
 import ExcelJS from 'exceljs';
 
-const factorNames = ['LAB', 'CAP'];
+const FACTOR_NAMES = ['LAB', 'CAP'];
 
-const ProjectBuilderPage = () => {
-  const { projectId } = useParams<{ projectId: string }>();
-  const [industries, setIndustries] = useState(2);
-  const [consumers, setConsumers] = useState(1);
-  const [goodsNames, setGoodsNames] = useState<string[]>(['IND1', 'IND2']);
-  const [consumerNames, setConsumerNames] = useState<string[]>(['HH1']);
-  const [goodsPrices, setGoodsPrices] = useState<number[]>([1, 1]);
-  const [wageRate, setWageRate] = useState(1);
-  const [useSamNames, setUseSamNames] = useState(true);
-  const [samSectionOpen, setSamSectionOpen] = useState(true);
-  const [benchmarkSectionOpen, setBenchmarkSectionOpen] = useState(true);
-  const [calibrationSectionOpen, setCalibrationSectionOpen] = useState(true);
-  const [closureSectionOpen, setClosureSectionOpen] = useState(true);
-  const [shockSectionOpen, setShockSectionOpen] = useState(true);
-  const [solveSectionOpen, setSolveSectionOpen] = useState(true);
-  const [calibrationMode, setCalibrationMode] = useState<'auto' | 'manual'>('auto');
-  const [betaMatrix, setBetaMatrix] = useState<number[][]>([]);
-  const [alphaParams, setAlphaParams] = useState<number[]>([]);
-  const [techParams, setTechParams] = useState<number[]>([]);
-  const [closureRules, setClosureRules] = useState<ClosureRule[]>([]);
-  const [shocks, setShocks] = useState<Shock[]>([]);
-  const [report, setReport] = useState<
-    { name: string; benchmark: number; solution: number; change: number }[] | null
-  >(null);
-  const [solving, setSolving] = useState(false);
+// State interface for better type safety
+interface ModelStudioState {
+  // Model dimensions
+  dimensions: {
+    industries: number;
+    consumers: number;
+  };
+  
+  // Names and labels
+  names: {
+    goods: string[];
+    consumers: string[];
+    useSamNames: boolean;
+  };
+  
+  // Economic parameters
+  parameters: {
+    goodsPrices: number[];
+    wageRate: number;
+    calibrationMode: 'auto' | 'manual';
+    betaMatrix: number[][];
+    alphaParams: number[];
+    techParams: number[];
+  };
+  
+  // Model constraints and shocks
+  constraints: {
+    closureRules: ClosureRule[];
+    shocks: Shock[];
+  };
+  
+  // SAM data
+  sam: SAM;
+  
+  // UI state
+  ui: {
+    samSectionOpen: boolean;
+    benchmarkSectionOpen: boolean;
+    calibrationSectionOpen: boolean;
+    closureSectionOpen: boolean;
+    shockSectionOpen: boolean;
+    solveSectionOpen: boolean;
+    solving: boolean;
+  };
+  
+  // Results and validation
+  results: {
+    report: { name: string; benchmark: number; solution: number; change: number }[] | null;
+  };
+  
+  // Error states
+  errors: {
+    sam: string;
+    goods: string;
+    consumers: string;
+  };
+}
+
+// Action types for reducer
+type ModelStudioAction =
+  | { type: 'SET_DIMENSIONS'; payload: { industries?: number; consumers?: number } }
+  | { type: 'SET_NAMES'; payload: { goods?: string[]; consumers?: string[]; useSamNames?: boolean } }
+  | { type: 'SET_PARAMETERS'; payload: Partial<ModelStudioState['parameters']> }
+  | { type: 'SET_CONSTRAINTS'; payload: Partial<ModelStudioState['constraints']> }
+  | { type: 'SET_SAM'; payload: SAM }
+  | { type: 'TOGGLE_SECTION'; payload: { section: keyof ModelStudioState['ui'] } }
+  | { type: 'SET_UI_STATE'; payload: Partial<ModelStudioState['ui']> }
+  | { type: 'SET_RESULTS'; payload: Partial<ModelStudioState['results']> }
+  | { type: 'SET_ERRORS'; payload: Partial<ModelStudioState['errors']> }
+  | { type: 'RESET_MODEL' };
+
+// Utility functions
+const adjustLength = (arr: string[], len: number, prefix: string): string[] => {
+  const copy = [...arr];
+  if (copy.length < len) {
+    for (let i = copy.length; i < len; i++) copy.push(`${prefix}${i + 1}`);
+  } else if (copy.length > len) {
+    copy.length = len;
+  }
+  return copy;
+};
+
+const adjustNumericArray = (arr: number[], len: number, defaultValue: number): number[] => {
+  const copy = [...arr];
+  if (copy.length < len) {
+    for (let i = copy.length; i < len; i++) copy.push(defaultValue);
+  } else if (copy.length > len) {
+    copy.length = len;
+  }
+  return copy;
+};
+
   const createEmptySam = (goods: string[], factors: string[], households: string[]): SAM => {
     const entries = [...goods, ...factors, ...households];
     const size = entries.length;
@@ -47,112 +114,430 @@ const ProjectBuilderPage = () => {
       data: Array.from({ length: size }, () => Array(size).fill(0)),
     };
   };
-  const [sam, setSam] = useState<SAM>(() => createEmptySam(goodsNames, factorNames, consumerNames));
-  const [samError, setSamError] = useState('');
-  const [goodsError, setGoodsError] = useState('');
-  const [consumerError, setConsumerError] = useState('');
 
-  const adjustLength = (arr: string[], len: number, prefix: string) => {
-    const copy = [...arr];
-    if (copy.length < len) {
-      for (let i = copy.length; i < len; i++) copy.push(`${prefix}${i + 1}`);
-    } else if (copy.length > len) {
-      copy.length = len;
-    }
-    return copy;
-  };
+// Initial state
+const getInitialState = (): ModelStudioState => ({
+  dimensions: {
+    industries: 2,
+    consumers: 1,
+  },
+  names: {
+    goods: ['IND1', 'IND2'],
+    consumers: ['HH1'],
+    useSamNames: true,
+  },
+  parameters: {
+    goodsPrices: [1, 1],
+    wageRate: 1,
+    calibrationMode: 'auto',
+    betaMatrix: [[0.5, 0.5]],
+    alphaParams: [1, 1],
+    techParams: [1, 1],
+  },
+  constraints: {
+    closureRules: [],
+    shocks: [],
+  },
+  sam: createEmptySam(['IND1', 'IND2'], FACTOR_NAMES, ['HH1']),
+  ui: {
+    samSectionOpen: true,
+    benchmarkSectionOpen: true,
+    calibrationSectionOpen: true,
+    closureSectionOpen: true,
+    shockSectionOpen: true,
+    solveSectionOpen: true,
+    solving: false,
+  },
+  results: {
+    report: null,
+  },
+  errors: {
+    sam: '',
+    goods: '',
+    consumers: '',
+  },
+});
 
-  useEffect(() => {
-    setGoodsNames((prev) => adjustLength(prev, industries, 'IND'));
-  }, [industries]);
-
-  useEffect(() => {
-    setConsumerNames((prev) => adjustLength(prev, consumers, 'HH'));
-  }, [consumers]);
-
-  useEffect(() => {
-    const expected = industries + factorNames.length + consumers;
-    if (
-      sam.data.length !== expected ||
-      sam.data.some((row) => row.length !== expected)
-    ) {
-      setSamError(
-        `SAM dimensions (${sam.data.length}x${sam.data.length}) do not match m=${industries} and n=${consumers}.`
+// Reducer function
+const modelStudioReducer = (state: ModelStudioState, action: ModelStudioAction): ModelStudioState => {
+  switch (action.type) {
+    case 'SET_DIMENSIONS': {
+      const newDimensions = { ...state.dimensions, ...action.payload };
+      const newGoodsNames = adjustLength(state.names.goods, newDimensions.industries, 'IND');
+      const newConsumerNames = adjustLength(state.names.consumers, newDimensions.consumers, 'HH');
+      const newGoodsPrices = adjustNumericArray(state.parameters.goodsPrices, newDimensions.industries, 1);
+      const newAlphaParams = adjustNumericArray(state.parameters.alphaParams, newDimensions.industries, 1);
+      const newTechParams = adjustNumericArray(state.parameters.techParams, newDimensions.industries, 1);
+      const newBetaMatrix = Array.from({ length: newDimensions.consumers }, (_, i) =>
+        Array.from({ length: newDimensions.industries }, (_, j) => 
+          state.parameters.betaMatrix[i]?.[j] ?? 0.5
+        )
       );
-    } else {
-      setSamError('');
-    }
-  }, [sam, industries, consumers]);
-
-  useEffect(() => {
-    setSam((prev) => {
-      const entries = [...goodsNames, ...factorNames, ...consumerNames];
-      const size = entries.length;
-      const data = Array.from({ length: size }, (_, i) =>
-        Array.from({ length: size }, (_, j) => prev.data?.[i]?.[j] ?? 0)
-      );
+      
       return {
-        entries,
-        goods: goodsNames,
-        factors: factorNames,
-        households: consumerNames,
-        data,
+        ...state,
+        dimensions: newDimensions,
+        names: {
+          ...state.names,
+          goods: newGoodsNames,
+          consumers: newConsumerNames,
+        },
+        parameters: {
+          ...state.parameters,
+          goodsPrices: newGoodsPrices,
+          alphaParams: newAlphaParams,
+          techParams: newTechParams,
+          betaMatrix: newBetaMatrix,
+        },
+        sam: createEmptySam(newGoodsNames, FACTOR_NAMES, newConsumerNames),
       };
+    }
+    
+    case 'SET_NAMES':
+      return {
+        ...state,
+        names: { ...state.names, ...action.payload },
+      };
+    
+    case 'SET_PARAMETERS':
+      return {
+        ...state,
+        parameters: { ...state.parameters, ...action.payload },
+      };
+    
+    case 'SET_CONSTRAINTS':
+      return {
+        ...state,
+        constraints: { ...state.constraints, ...action.payload },
+      };
+    
+    case 'SET_SAM':
+      return {
+        ...state,
+        sam: action.payload,
+      };
+    
+    case 'TOGGLE_SECTION':
+      return {
+        ...state,
+        ui: {
+          ...state.ui,
+          [action.payload.section]: !state.ui[action.payload.section],
+        },
+      };
+    
+    case 'SET_UI_STATE':
+      return {
+        ...state,
+        ui: { ...state.ui, ...action.payload },
+      };
+    
+    case 'SET_RESULTS':
+      return {
+        ...state,
+        results: { ...state.results, ...action.payload },
+      };
+    
+    case 'SET_ERRORS':
+      return {
+        ...state,
+        errors: { ...state.errors, ...action.payload },
+      };
+    
+    case 'RESET_MODEL':
+      return getInitialState();
+    
+    default:
+      return state;
+  }
+};
+
+const ModelStudioPage = () => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const [state, dispatch] = useReducer(modelStudioReducer, getInitialState());
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (!projectId) return;
+    
+    const saveTimer = setTimeout(() => {
+      // Auto-save project state every 30 seconds
+      console.log('Auto-saving project state...', projectId);
+      // TODO: Implement auto-save API call
+    }, 30000);
+
+    return () => clearTimeout(saveTimer);
+  }, [projectId, state]);
+
+  // SAM validation effect
+  useEffect(() => {
+    const expected = state.dimensions.industries + FACTOR_NAMES.length + state.dimensions.consumers;
+    if (
+      state.sam.data.length !== expected ||
+      state.sam.data.some((row) => row.length !== expected)
+    ) {
+      dispatch({
+        type: 'SET_ERRORS',
+        payload: {
+          sam: `SAM dimensions (${state.sam.data.length}x${state.sam.data.length}) do not match m=${state.dimensions.industries} and n=${state.dimensions.consumers}.`
+        }
+      });
+    } else {
+      dispatch({
+        type: 'SET_ERRORS',
+        payload: { sam: '' }
+      });
+    }
+  }, [state.sam, state.dimensions]);
+
+  // Update SAM when names change
+  useEffect(() => {
+    const newSam = createEmptySam(state.names.goods, FACTOR_NAMES, state.names.consumers);
+    // Preserve existing data if dimensions match
+    if (state.sam.data.length === newSam.data.length) {
+      newSam.data = state.sam.data.map((row, i) =>
+        row.map((cell, j) => (newSam.data[i] && newSam.data[i][j] !== undefined) ? cell : 0)
+      );
+    }
+    dispatch({ type: 'SET_SAM', payload: newSam });
+  }, [state.names.goods, state.names.consumers]);
+
+  // Event handlers
+  const handleDimensionChange = useCallback((type: 'industries' | 'consumers', value: number) => {
+    dispatch({
+      type: 'SET_DIMENSIONS',
+      payload: { [type]: value },
     });
-  }, [goodsNames, consumerNames]);
+  }, []);
 
-  const handleGoodsInput = (value: string) => {
-    const names = value.split(',').map((n) => n.trim()).filter(Boolean);
-    setGoodsNames(adjustLength(names, industries, 'IND'));
-    setGoodsError(
-      names.length === industries ? '' : `Enter ${industries} names`
-    );
-  };
+  // Name editing state interface
+  interface EditingNamesState {
+    goods: string[];
+    consumers: string[];
+    isEditingGoods: boolean;
+    isEditingConsumers: boolean;
+  }
 
-  const handleConsumersInput = (value: string) => {
-    const names = value.split(',').map((n) => n.trim()).filter(Boolean);
-    setConsumerNames(adjustLength(names, consumers, 'HH'));
-    setConsumerError(
-      names.length === consumers ? '' : `Enter ${consumers} names`
-    );
-  };
+  // Name editing state
+  const [editingNames, setEditingNames] = useState<EditingNamesState>({
+    goods: state.names.goods,
+    consumers: state.names.consumers,
+    isEditingGoods: false,
+    isEditingConsumers: false,
+  });
 
-  const adjustPriceLength = (arr: number[], len: number) => {
-    const copy = [...arr];
-    if (copy.length < len) {
-      for (let i = copy.length; i < len; i++) copy.push(1);
-    } else if (copy.length > len) {
-      copy.length = len;
-    }
-    return copy;
-  };
-
+  // Update editing state when actual names change (e.g., from dimension changes)
   useEffect(() => {
-    setGoodsPrices((prev) => adjustPriceLength(prev, industries));
-  }, [industries]);
-
-  const adjustParamArray = (arr: number[], len: number, def: number) => {
-    const copy = [...arr];
-    if (copy.length < len) {
-      for (let i = copy.length; i < len; i++) copy.push(def);
-    } else if (copy.length > len) {
-      copy.length = len;
+    if (!editingNames.isEditingGoods) {
+      setEditingNames(prev => ({ ...prev, goods: state.names.goods }));
     }
-    return copy;
-  };
+    if (!editingNames.isEditingConsumers) {
+      setEditingNames(prev => ({ ...prev, consumers: state.names.consumers }));
+    }
+  }, [state.names.goods, state.names.consumers, editingNames.isEditingGoods, editingNames.isEditingConsumers]);
 
-  useEffect(() => {
-    setAlphaParams((prev) => adjustParamArray(prev, industries, 1));
-    setTechParams((prev) => adjustParamArray(prev, industries, 1));
-    setBetaMatrix((prev) =>
-      Array.from({ length: consumers }, (_, i) =>
-        Array.from({ length: industries }, (_, j) => prev[i]?.[j] ?? 0.5)
-      )
-    );
-  }, [industries, consumers]);
+  const handleStartEditingGoods = useCallback(() => {
+    setEditingNames(prev => ({
+      ...prev,
+      goods: state.names.goods,
+      isEditingGoods: true
+    }));
+  }, [state.names.goods]);
 
-  const handleDownloadCsv = () => {
-    const csv = exportSamToCsv(sam);
+  const handleStartEditingConsumers = useCallback(() => {
+    setEditingNames(prev => ({
+      ...prev,
+      consumers: state.names.consumers,
+      isEditingConsumers: true
+    }));
+  }, [state.names.consumers]);
+
+  const handleGoodsEditChange = useCallback((value: string) => {
+    const names = value.split(',').map((n) => n.trim());
+    setEditingNames(prev => ({ ...prev, goods: names }));
+  }, []);
+
+  const handleConsumersEditChange = useCallback((value: string) => {
+    const names = value.split(',').map((n) => n.trim());
+    setEditingNames(prev => ({ ...prev, consumers: names }));
+  }, []);
+
+  const handleApplyGoodsNames = useCallback(() => {
+    const validNames = editingNames.goods.filter(Boolean);
+    
+    if (validNames.length === 0) {
+      // If no valid names provided, use defaults
+      const adjustedNames = adjustLength([], state.dimensions.industries, 'IND');
+      dispatch({
+        type: 'SET_NAMES',
+        payload: { goods: adjustedNames },
+      });
+      setEditingNames(prev => ({ ...prev, goods: adjustedNames, isEditingGoods: false }));
+    } else if (validNames.length === state.dimensions.industries) {
+      // Perfect match - apply names
+      dispatch({
+        type: 'SET_NAMES',
+        payload: { goods: validNames },
+      });
+      setEditingNames(prev => ({ ...prev, goods: validNames, isEditingGoods: false }));
+      dispatch({
+        type: 'SET_ERRORS',
+        payload: { goods: '' }
+      });
+    } else {
+      // Wrong number of names - show error but allow continued editing
+      dispatch({
+        type: 'SET_ERRORS',
+        payload: {
+          goods: `Please enter exactly ${state.dimensions.industries} names (you have ${validNames.length})`
+        }
+      });
+      return; // Don't exit edit mode
+    }
+  }, [editingNames.goods, state.dimensions.industries]);
+
+  const handleApplyConsumersNames = useCallback(() => {
+    const validNames = editingNames.consumers.filter(Boolean);
+    
+    if (validNames.length === 0) {
+      // If no valid names provided, use defaults
+      const adjustedNames = adjustLength([], state.dimensions.consumers, 'HH');
+      dispatch({
+        type: 'SET_NAMES',
+        payload: { consumers: adjustedNames },
+      });
+      setEditingNames(prev => ({ ...prev, consumers: adjustedNames, isEditingConsumers: false }));
+    } else if (validNames.length === state.dimensions.consumers) {
+      // Perfect match - apply names
+      dispatch({
+        type: 'SET_NAMES',
+        payload: { consumers: validNames },
+      });
+      setEditingNames(prev => ({ ...prev, consumers: validNames, isEditingConsumers: false }));
+      dispatch({
+        type: 'SET_ERRORS',
+        payload: { consumers: '' }
+      });
+    } else {
+      // Wrong number of names - show error but allow continued editing
+      dispatch({
+        type: 'SET_ERRORS',
+        payload: {
+          consumers: `Please enter exactly ${state.dimensions.consumers} names (you have ${validNames.length})`
+        }
+      });
+      return; // Don't exit edit mode
+    }
+  }, [editingNames.consumers, state.dimensions.consumers]);
+
+  const handleCancelGoodsEdit = useCallback(() => {
+    setEditingNames(prev => ({
+      ...prev,
+      goods: state.names.goods,
+      isEditingGoods: false
+    }));
+    dispatch({
+      type: 'SET_ERRORS',
+      payload: { goods: '' }
+    });
+  }, [state.names.goods]);
+
+  const handleCancelConsumersEdit = useCallback(() => {
+    setEditingNames(prev => ({
+      ...prev,
+      consumers: state.names.consumers,
+      isEditingConsumers: false
+    }));
+    dispatch({
+      type: 'SET_ERRORS',
+      payload: { consumers: '' }
+    });
+  }, [state.names.consumers]);
+
+  const handlePriceChange = useCallback((index: number, value: number) => {
+    const newPrices = [...state.parameters.goodsPrices];
+    newPrices[index] = value;
+    dispatch({
+      type: 'SET_PARAMETERS',
+      payload: { goodsPrices: newPrices },
+    });
+  }, [state.parameters.goodsPrices]);
+
+  const handleBetaMatrixChange = useCallback((consumerIndex: number, goodIndex: number, value: number) => {
+    const newMatrix = state.parameters.betaMatrix.map((row) => [...row]);
+    newMatrix[consumerIndex][goodIndex] = isNaN(value) ? 0 : value;
+    dispatch({
+      type: 'SET_PARAMETERS',
+      payload: { betaMatrix: newMatrix },
+    });
+  }, [state.parameters.betaMatrix]);
+
+  const normalizeBetaRows = useCallback(() => {
+    const normalizedMatrix = state.parameters.betaMatrix.map((row) => {
+        const sum = row.reduce((a, b) => a + b, 0);
+        return sum ? row.map((v) => v / sum) : row;
+    });
+    dispatch({
+      type: 'SET_PARAMETERS',
+      payload: { betaMatrix: normalizedMatrix },
+    });
+  }, [state.parameters.betaMatrix]);
+
+  const handleSolve = useCallback(async () => {
+    dispatch({ type: 'SET_UI_STATE', payload: { solving: true } });
+    dispatch({ type: 'SET_RESULTS', payload: { report: null } });
+    
+    const params: ModelParameters = {
+      alpha: state.parameters.alphaParams, // Required field for ModelParameters interface
+      b: state.parameters.techParams, // Required field for ModelParameters interface  
+      prices: state.parameters.goodsPrices,
+      wage: state.parameters.wageRate,
+      beta: state.parameters.betaMatrix.flat(),
+      A: state.parameters.techParams,
+      closureRules: state.constraints.closureRules,
+      shocks: state.constraints.shocks,
+      calibration: state.parameters.calibrationMode,
+    };
+    
+    try {
+      const res = await solveModel('mn1', params, state.sam);
+      const table: { name: string; benchmark: number; solution: number; change: number }[] = [];
+      
+      if (res.production) {
+        Object.entries(res.production).forEach(([k, v]) => {
+          const bench = 1;
+          const change = bench ? ((v - bench) / bench) * 100 : 0;
+          table.push({ name: `XS[${k}]`, benchmark: bench, solution: v, change });
+        });
+      }
+      
+      if (res.prices) {
+        Object.entries(res.prices).forEach(([k, v]) => {
+          const idx = state.names.goods.indexOf(k);
+          const bench = state.parameters.goodsPrices[idx] ?? 0;
+          const change = bench ? ((v - bench) / bench) * 100 : 0;
+          table.push({ name: `P[${k}]`, benchmark: bench, solution: v, change });
+        });
+      }
+      
+      if (typeof res.utility === 'number') {
+        const bench = 1;
+        const v = res.utility;
+        const change = ((v - bench) / bench) * 100;
+        table.push({ name: 'U', benchmark: bench, solution: v, change });
+      }
+      
+      dispatch({ type: 'SET_RESULTS', payload: { report: table } });
+    } catch (err) {
+      console.error('Model solving error:', err);
+    } finally {
+      dispatch({ type: 'SET_UI_STATE', payload: { solving: false } });
+    }
+  }, [state.parameters, state.constraints, state.sam, state.names.goods]);
+
+  // File download handlers
+  const handleDownloadCsv = useCallback(() => {
+    const csv = exportSamToCsv(state.sam);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -162,10 +547,10 @@ const ProjectBuilderPage = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [state.sam]);
 
-  const handleDownloadExcel = async () => {
-    const blob = await exportSamToExcel(sam);
+  const handleDownloadExcel = useCallback(async () => {
+    const blob = await exportSamToExcel(state.sam);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -174,64 +559,12 @@ const ProjectBuilderPage = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [state.sam]);
 
-  const normalizeBetaRows = () => {
-    setBetaMatrix((prev) =>
-      prev.map((row) => {
-        const sum = row.reduce((a, b) => a + b, 0);
-        return sum ? row.map((v) => v / sum) : row;
-      })
-    );
-  };
-
-  const handleSolve = async () => {
-    setSolving(true);
-    setReport(null);
-    const params: ModelParameters = {
-      prices: goodsPrices,
-      wage: wageRate,
-      beta: betaMatrix.flat(),
-      A: techParams,
-      closureRules,
-      shocks,
-      calibration: calibrationMode,
-    };
-    try {
-      const res = await solveModel('mn1', params, sam);
-      const table: { name: string; benchmark: number; solution: number; change: number }[] = [];
-      if (res.production) {
-        Object.entries(res.production).forEach(([k, v]) => {
-          const bench = 1;
-          const change = bench ? ((v - bench) / bench) * 100 : 0;
-          table.push({ name: `XS[${k}]`, benchmark: bench, solution: v, change });
-        });
-      }
-      if (res.prices) {
-        Object.entries(res.prices).forEach(([k, v]) => {
-          const idx = goodsNames.indexOf(k);
-          const bench = goodsPrices[idx] ?? 0;
-          const change = bench ? ((v - bench) / bench) * 100 : 0;
-          table.push({ name: `P[${k}]`, benchmark: bench, solution: v, change });
-        });
-      }
-      if (typeof res.utility === 'number') {
-        const bench = 1;
-        const v = res.utility;
-        const change = ((v - bench) / bench) * 100;
-        table.push({ name: 'U', benchmark: bench, solution: v, change });
-      }
-      setReport(table);
-    } catch (err) {
-      console.error(err);
-    }
-    setSolving(false);
-  };
-
-  const handleDownloadReportCsv = () => {
-    if (!report) return;
+  const handleDownloadReportCsv = useCallback(() => {
+    if (!state.results.report) return;
     const header = 'Variable,Benchmark,Solution,% Change';
-    const rows = report.map(
+    const rows = state.results.report.map(
       (r) => `${r.name},${r.benchmark},${r.solution},${r.change}`
     );
     const csv = [header, ...rows].join('\n');
@@ -244,14 +577,14 @@ const ProjectBuilderPage = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [state.results.report]);
 
-  const handleDownloadReportExcel = async () => {
-    if (!report) return;
+  const handleDownloadReportExcel = useCallback(async () => {
+    if (!state.results.report) return;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Report');
     ws.addRow(['Variable', 'Benchmark', 'Solution', '% Change']);
-    report.forEach((r) => ws.addRow([r.name, r.benchmark, r.solution, r.change]));
+    state.results.report.forEach((r) => ws.addRow([r.name, r.benchmark, r.solution, r.change]));
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -264,7 +597,7 @@ const ProjectBuilderPage = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [state.results.report]);
 
   return (
     <div
@@ -273,39 +606,41 @@ const ProjectBuilderPage = () => {
     >
       <div className="bg-[#2F3A4A] text-white rounded-lg p-6 text-center shadow-lg">
         <h1 className="text-2xl font-bold mb-2">
-          Welcome to your Model Builder!
+          Welcome to your Model Studio!
         </h1>
         <p>
           Let's help you set up and run your CGE model step-by-step.
         </p>
       </div>
 
-      <section className={solving ? 'opacity-50 pointer-events-none' : ''}>
+      {/* SAM Setup Section */}
+      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
         <div
           className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => setSamSectionOpen(!samSectionOpen)}
+          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'samSectionOpen' } })}
         >
-          <span className="mr-2">{samSectionOpen ? '▼' : '►'}</span>
+          <span className="mr-2">{state.ui.samSectionOpen ? '▼' : '►'}</span>
           <h2 className="text-xl font-semibold">1. SAM Setup</h2>
         </div>
         <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${samSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
+            state.ui.samSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
+          }`}
         >
           <div>
             <label className="block mb-2 font-medium">Upload SAM</label>
             <FileUploader
-              onSamLoaded={setSam}
-              goods={goodsNames}
-              factors={factorNames}
-              households={consumerNames}
-              autoPopulateNames={useSamNames}
+              onSamLoaded={(sam) => dispatch({ type: 'SET_SAM', payload: sam })}
+              goods={state.names.goods}
+              factors={FACTOR_NAMES}
+              households={state.names.consumers}
+              autoPopulateNames={state.names.useSamNames}
               onNamesLoaded={(g, _f, h) => {
-                setGoodsNames(g);
-                setConsumerNames(h);
+                dispatch({ type: 'SET_NAMES', payload: { goods: g, consumers: h } });
               }}
             />
-            {samError && (
-              <p className="mt-2 text-sm text-danger">{samError}</p>
+            {state.errors.sam && (
+              <p className="mt-2 text-sm text-danger">{state.errors.sam}</p>
             )}
           </div>
 
@@ -318,8 +653,8 @@ const ProjectBuilderPage = () => {
                 type="number"
                 min={1}
                 className="input w-full"
-                value={industries}
-                onChange={(e) => setIndustries(parseInt(e.target.value) || 0)}
+                value={state.dimensions.industries}
+                onChange={(e) => handleDimensionChange('industries', parseInt(e.target.value) || 0)}
               />
             </div>
             <div>
@@ -330,8 +665,8 @@ const ProjectBuilderPage = () => {
                 type="number"
                 min={1}
                 className="input w-full"
-                value={consumers}
-                onChange={(e) => setConsumers(parseInt(e.target.value) || 0)}
+                value={state.dimensions.consumers}
+                onChange={(e) => handleDimensionChange('consumers', parseInt(e.target.value) || 0)}
               />
             </div>
           </div>
@@ -341,45 +676,121 @@ const ProjectBuilderPage = () => {
               <input
                 type="checkbox"
                 className="mr-2"
-                checked={useSamNames}
-                onChange={(e) => setUseSamNames(e.target.checked)}
+                checked={state.names.useSamNames}
+                onChange={(e) => dispatch({ 
+                  type: 'SET_NAMES', 
+                  payload: { useSamNames: e.target.checked } 
+                })}
               />
               <span className="text-sm">Load names from uploaded SAM</span>
             </label>
           </div>
 
-          {!useSamNames && (
+          {!state.names.useSamNames && (
             <div className="space-y-4">
+              {/* Industry Names Section */}
               <div>
                 <label className="block mb-1 font-medium">
-                  Industry Names (comma separated)
+                  Industry Names
                 </label>
+                {!editingNames.isEditingGoods ? (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                      <span className="text-gray-700">{state.names.goods.join(', ')}</span>
+                    </div>
+                    <button
+                      onClick={handleStartEditingGoods}
+                      className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                    >
+                      Edit Names
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                 <input
                   type="text"
                   className={`input w-full ${
-                    goodsError ? 'border-danger focus:ring-danger' : ''
-                  }`}
-                  value={goodsNames.join(', ')}
-                  onChange={(e) => handleGoodsInput(e.target.value)}
-                />
-                {goodsError && (
-                  <p className="mt-1 text-xs text-danger">{goodsError}</p>
+                        state.errors.goods ? 'border-danger focus:ring-danger' : 'border-blue-300 focus:ring-blue-500'
+                      }`}
+                      value={editingNames.goods.join(', ')}
+                      onChange={(e) => handleGoodsEditChange(e.target.value)}
+                      placeholder="Enter industry names separated by commas..."
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleApplyGoodsNames}
+                        className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                      >
+                        Apply Changes
+                      </button>
+                      <button
+                        onClick={handleCancelGoodsEdit}
+                        className="btn bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <span className="text-xs text-gray-500">
+                        Need exactly {state.dimensions.industries} names
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {state.errors.goods && (
+                  <p className="mt-1 text-xs text-danger">{state.errors.goods}</p>
                 )}
               </div>
+
+              {/* Consumer Names Section */}
               <div>
                 <label className="block mb-1 font-medium">
-                  Consumer Names (comma separated)
+                  Consumer Names
                 </label>
+                {!editingNames.isEditingConsumers ? (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                      <span className="text-gray-700">{state.names.consumers.join(', ')}</span>
+                    </div>
+                    <button
+                      onClick={handleStartEditingConsumers}
+                      className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                    >
+                      Edit Names
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                 <input
                   type="text"
                   className={`input w-full ${
-                    consumerError ? 'border-danger focus:ring-danger' : ''
-                  }`}
-                  value={consumerNames.join(', ')}
-                  onChange={(e) => handleConsumersInput(e.target.value)}
-                />
-                {consumerError && (
-                  <p className="mt-1 text-xs text-danger">{consumerError}</p>
+                        state.errors.consumers ? 'border-danger focus:ring-danger' : 'border-blue-300 focus:ring-blue-500'
+                      }`}
+                      value={editingNames.consumers.join(', ')}
+                      onChange={(e) => handleConsumersEditChange(e.target.value)}
+                      placeholder="Enter consumer names separated by commas..."
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleApplyConsumersNames}
+                        className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                      >
+                        Apply Changes
+                      </button>
+                      <button
+                        onClick={handleCancelConsumersEdit}
+                        className="btn bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <span className="text-xs text-gray-500">
+                        Need exactly {state.dimensions.consumers} names
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {state.errors.consumers && (
+                  <p className="mt-1 text-xs text-danger">{state.errors.consumers}</p>
                 )}
               </div>
             </div>
@@ -403,21 +814,27 @@ const ProjectBuilderPage = () => {
                 </button>
               </div>
             </div>
-            <SAMTable sam={sam} onChange={setSam} />
+            <SAMTable 
+              sam={state.sam} 
+              onChange={(sam) => dispatch({ type: 'SET_SAM', payload: sam })} 
+            />
           </div>
         </div>
       </section>
 
-      <section className={solving ? 'opacity-50 pointer-events-none' : ''}>
+      {/* Benchmark Prices Section */}
+      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
         <div
           className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => setBenchmarkSectionOpen(!benchmarkSectionOpen)}
+          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'benchmarkSectionOpen' } })}
         >
-          <span className="mr-2">{benchmarkSectionOpen ? '▼' : '►'}</span>
+          <span className="mr-2">{state.ui.benchmarkSectionOpen ? '▼' : '►'}</span>
           <h2 className="text-xl font-semibold">2. Benchmark Prices</h2>
         </div>
         <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${benchmarkSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
+            state.ui.benchmarkSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
+          }`}
         >
           <div>
             <label className="block mb-2 font-medium">Price of goods (PO)</label>
@@ -429,7 +846,7 @@ const ProjectBuilderPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {goodsNames.map((name, idx) => (
+                {state.names.goods.map((name, idx) => (
                   <tr key={name} className="align-top">
                     <td className="py-2 pr-4">{name}</td>
                     <td className="py-2">
@@ -437,19 +854,15 @@ const ProjectBuilderPage = () => {
                         type="number"
                         step="any"
                         className={`input w-full ${
-                          goodsPrices[idx] > 0
+                          state.parameters.goodsPrices[idx] > 0
                             ? ''
                             : 'border-danger focus:ring-danger'
                         }`}
-                        value={goodsPrices[idx]}
+                        value={state.parameters.goodsPrices[idx]}
                         placeholder="Enter price (PO)"
-                        onChange={(e) => {
-                          const arr = [...goodsPrices];
-                          arr[idx] = parseFloat(e.target.value);
-                          setGoodsPrices(arr);
-                        }}
+                        onChange={(e) => handlePriceChange(idx, parseFloat(e.target.value))}
                       />
-                      {goodsPrices[idx] > 0 ? null : (
+                      {state.parameters.goodsPrices[idx] > 0 ? null : (
                         <p className="mt-1 text-xs text-danger">
                           Enter a positive number
                         </p>
@@ -466,13 +879,16 @@ const ProjectBuilderPage = () => {
               type="number"
               step="any"
               className={`input w-full ${
-                wageRate > 0 ? '' : 'border-danger focus:ring-danger'
+                state.parameters.wageRate > 0 ? '' : 'border-danger focus:ring-danger'
               }`}
-              value={wageRate}
+              value={state.parameters.wageRate}
               placeholder="Enter wage rate (WO)"
-              onChange={(e) => setWageRate(parseFloat(e.target.value))}
+              onChange={(e) => dispatch({ 
+                type: 'SET_PARAMETERS', 
+                payload: { wageRate: parseFloat(e.target.value) } 
+              })}
             />
-            {wageRate > 0 ? null : (
+            {state.parameters.wageRate > 0 ? null : (
               <p className="mt-1 text-xs text-danger">Enter a positive number</p>
             )}
             <p className="mt-1 text-xs text-gray-500">
@@ -482,16 +898,19 @@ const ProjectBuilderPage = () => {
         </div>
       </section>
 
-      <section className={solving ? 'opacity-50 pointer-events-none' : ''}>
+      {/* Calibration Section */}
+      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
         <div
           className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => setCalibrationSectionOpen(!calibrationSectionOpen)}
+          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'calibrationSectionOpen' } })}
         >
-          <span className="mr-2">{calibrationSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">4. Auto-Calibration Option</h2>
+          <span className="mr-2">{state.ui.calibrationSectionOpen ? '▼' : '►'}</span>
+          <h2 className="text-xl font-semibold">3. Model Calibration</h2>
         </div>
         <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${calibrationSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
+            state.ui.calibrationSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
+          }`}
         >
           <div>
             <label className="block mb-2 font-medium">Calibration Mode:</label>
@@ -499,8 +918,11 @@ const ProjectBuilderPage = () => {
               <label className="inline-flex items-center">
                 <input
                   type="radio"
-                  checked={calibrationMode === 'auto'}
-                  onChange={() => setCalibrationMode('auto')}
+                  checked={state.parameters.calibrationMode === 'auto'}
+                  onChange={() => dispatch({ 
+                    type: 'SET_PARAMETERS', 
+                    payload: { calibrationMode: 'auto' } 
+                  })}
                   className="mr-2"
                 />
                 <span>Auto-calibrate (recommended)</span>
@@ -508,15 +930,18 @@ const ProjectBuilderPage = () => {
               <label className="inline-flex items-center">
                 <input
                   type="radio"
-                  checked={calibrationMode === 'manual'}
-                  onChange={() => setCalibrationMode('manual')}
+                  checked={state.parameters.calibrationMode === 'manual'}
+                  onChange={() => dispatch({ 
+                    type: 'SET_PARAMETERS', 
+                    payload: { calibrationMode: 'manual' } 
+                  })}
                   className="mr-2"
                 />
                 <span>Manual input</span>
               </label>
             </div>
           </div>
-          {calibrationMode === 'manual' && (
+          {state.parameters.calibrationMode === 'manual' && (
             <div className="space-y-6">
               <div>
                 <h3 className="font-medium mb-2">A. Utility Parameters (BETA)</h3>
@@ -524,7 +949,7 @@ const ProjectBuilderPage = () => {
                   <thead>
                     <tr>
                       <th className="pb-2">Consumer \ Industry</th>
-                      {goodsNames.map((g) => (
+                      {state.names.goods.map((g) => (
                         <th key={g} className="pb-2">
                           {g}
                         </th>
@@ -532,23 +957,19 @@ const ProjectBuilderPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {consumerNames.map((c, i) => (
+                    {state.names.consumers.map((c, i) => (
                       <tr key={c} className="align-top">
                         <td className="py-2 pr-4">{c}</td>
-                        {goodsNames.map((g, j) => (
+                        {state.names.goods.map((g, j) => (
                           <td key={g} className="py-2">
                             <input
                               type="number"
                               step="any"
                               className="input w-full"
-                              value={betaMatrix[i]?.[j] ?? 0}
+                              value={state.parameters.betaMatrix[i]?.[j] ?? 0}
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value);
-                                setBetaMatrix((prev) => {
-                                  const copy = prev.map((row) => [...row]);
-                                  copy[i][j] = isNaN(val) ? 0 : val;
-                                  return copy;
-                                });
+                                handleBetaMatrixChange(i, j, val);
                               }}
                             />
                           </td>
@@ -571,18 +992,21 @@ const ProjectBuilderPage = () => {
               <div>
                 <h3 className="font-medium mb-2">B. Production Parameters (ALPHA)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {goodsNames.map((name, idx) => (
+                  {state.names.goods.map((name, idx) => (
                     <div key={`alpha-${name}`}> 
                       <label className="block mb-1 font-medium">{name}</label>
                       <input
                         type="number"
                         step="any"
                         className="input w-full"
-                        value={alphaParams[idx] ?? 1}
+                        value={state.parameters.alphaParams[idx] ?? 1}
                         onChange={(e) => {
-                          const arr = [...alphaParams];
-                          arr[idx] = parseFloat(e.target.value);
-                          setAlphaParams(arr);
+                          const newParams = [...state.parameters.alphaParams];
+                          newParams[idx] = parseFloat(e.target.value);
+                          dispatch({
+                            type: 'SET_PARAMETERS',
+                            payload: { alphaParams: newParams },
+                          });
                         }}
                       />
                     </div>
@@ -592,18 +1016,21 @@ const ProjectBuilderPage = () => {
               <div>
                 <h3 className="font-medium mb-2">C. Technology coefficient per industry (A)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {goodsNames.map((name, idx) => (
+                  {state.names.goods.map((name, idx) => (
                     <div key={`tech-${name}`}>
                       <label className="block mb-1 font-medium">{name}</label>
                       <input
                         type="number"
                         step="any"
                         className="input w-full"
-                        value={techParams[idx] ?? 1}
+                        value={state.parameters.techParams[idx] ?? 1}
                         onChange={(e) => {
-                          const arr = [...techParams];
-                          arr[idx] = parseFloat(e.target.value);
-                          setTechParams(arr);
+                          const newParams = [...state.parameters.techParams];
+                          newParams[idx] = parseFloat(e.target.value);
+                          dispatch({
+                            type: 'SET_PARAMETERS',
+                            payload: { techParams: newParams },
+                          });
                         }}
                       />
                     </div>
@@ -615,67 +1042,90 @@ const ProjectBuilderPage = () => {
         </div>
       </section>
 
-      <section className={solving ? 'opacity-50 pointer-events-none' : ''}>
+      {/* Closure Rules Section */}
+      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
         <div
           className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => setClosureSectionOpen(!closureSectionOpen)}
+          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'closureSectionOpen' } })}
         >
-          <span className="mr-2">{closureSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">5. Define Closure Rules</h2>
+          <span className="mr-2">{state.ui.closureSectionOpen ? '▼' : '►'}</span>
+          <h2 className="text-xl font-semibold">4. Define Closure Rules</h2>
         </div>
         <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${closureSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
+            state.ui.closureSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
+          }`}
         >
           <ClosureRuleBuilder
-            rules={closureRules}
-            goods={goodsNames}
-            consumers={consumerNames}
-            onAdd={(r) => setClosureRules([...closureRules, r])}
-            onRemove={(i) =>
-              setClosureRules(closureRules.filter((_, idx) => idx !== i))
-            }
+            rules={state.constraints.closureRules}
+            goods={state.names.goods}
+            consumers={state.names.consumers}
+            onAdd={(r) => dispatch({
+              type: 'SET_CONSTRAINTS',
+              payload: { closureRules: [...state.constraints.closureRules, r] },
+            })}
+            onRemove={(i) => dispatch({
+              type: 'SET_CONSTRAINTS',
+              payload: { 
+                closureRules: state.constraints.closureRules.filter((_, idx) => idx !== i) 
+              },
+            })}
           />
         </div>
       </section>
 
-      <section className={solving ? 'opacity-50 pointer-events-none' : ''}>
+      {/* Shocks Section */}
+      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
         <div
           className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => setShockSectionOpen(!shockSectionOpen)}
+          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'shockSectionOpen' } })}
         >
-          <span className="mr-2">{shockSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">6. Apply Shocks</h2>
+          <span className="mr-2">{state.ui.shockSectionOpen ? '▼' : '►'}</span>
+          <h2 className="text-xl font-semibold">5. Apply Economic Shocks</h2>
         </div>
         <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${shockSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
+            state.ui.shockSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
+          }`}
         >
           <ShockBuilder
-            shocks={shocks}
-            goods={goodsNames}
-            consumers={consumerNames}
-            onAdd={(s) => setShocks([...shocks, s])}
-            onRemove={(i) => setShocks(shocks.filter((_, idx) => idx !== i))}
+            shocks={state.constraints.shocks}
+            goods={state.names.goods}
+            consumers={state.names.consumers}
+            onAdd={(s) => dispatch({
+              type: 'SET_CONSTRAINTS',
+              payload: { shocks: [...state.constraints.shocks, s] },
+            })}
+            onRemove={(i) => dispatch({
+              type: 'SET_CONSTRAINTS',
+              payload: { 
+                shocks: state.constraints.shocks.filter((_, idx) => idx !== i) 
+              },
+            })}
           />
         </div>
       </section>
 
+      {/* Solve & Report Section */}
       <section>
         <div
           className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => setSolveSectionOpen(!solveSectionOpen)}
+          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'solveSectionOpen' } })}
         >
-          <span className="mr-2">{solveSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">7. Solve & Report</h2>
+          <span className="mr-2">{state.ui.solveSectionOpen ? '▼' : '►'}</span>
+          <h2 className="text-xl font-semibold">6. Solve & Generate Report</h2>
         </div>
         <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${solveSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'}`}
+          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
+            state.ui.solveSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
+          }`}
         >
           <button
             onClick={handleSolve}
-            disabled={solving}
+            disabled={state.ui.solving}
             className="btn btn-primary flex items-center justify-center"
           >
-            {solving ? (
+            {state.ui.solving ? (
               <>
                 <svg
                   className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
@@ -703,7 +1153,7 @@ const ProjectBuilderPage = () => {
               'Solve Model'
             )}
           </button>
-          {report && (
+          {state.results.report && (
             <div className="mt-4 space-y-4">
               <table className="w-full text-left">
                 <thead>
@@ -715,7 +1165,7 @@ const ProjectBuilderPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {report.map((r) => (
+                  {state.results.report.map((r) => (
                     <tr key={r.name} className="align-top">
                       <td className="py-1 pr-2">{r.name}</td>
                       <td className="py-1">{r.benchmark.toFixed(2)}</td>
@@ -747,5 +1197,4 @@ const ProjectBuilderPage = () => {
   );
 };
 
-export default ProjectBuilderPage;
-
+export default ModelStudioPage;

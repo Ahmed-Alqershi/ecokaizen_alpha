@@ -54,18 +54,100 @@ export const parseSamFromExcel = async (file: File): Promise<ParsedSam | null> =
     
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) {
+      console.error('No worksheet found in Excel file');
       return null;
     }
     
-    // Convert to CSV format
-    let csvContent = '';
+    // Parse Excel data directly instead of converting to CSV
+    const columnNames: string[] = [];
+    const rowNames: string[] = [];
+    const numericData: number[][] = [];
+    
+    let headerRow: any[] = [];
+    let isFirstRow = true;
+    
     worksheet.eachRow((row, rowNumber) => {
       const values = row.values as any[];
-      // Start from index 1 since ExcelJS row values are 1-based
-      csvContent += values.slice(1).join(',') + '\n';
+      
+      // ExcelJS row.values is 1-based, so we need to slice from index 1
+      const rowData = values.slice(1);
+      
+      if (isFirstRow) {
+        // First row contains headers
+        headerRow = rowData;
+        // Column names are everything except the first cell (which should be empty or row label)
+        for (let i = 1; i < rowData.length; i++) {
+          const colName = rowData[i];
+          columnNames.push(colName != null ? String(colName).trim() : '');
+        }
+        isFirstRow = false;
+      } else {
+        // Data rows
+        if (rowData.length === 0) return; // Skip empty rows
+        
+        // First cell is the row name
+        const rowName = rowData[0];
+        rowNames.push(rowName != null ? String(rowName).trim() : '');
+        
+        // Rest are numeric values
+        const values: number[] = [];
+        for (let i = 1; i <= columnNames.length; i++) {
+          const val = rowData[i];
+          let num: number;
+          
+          if (val == null || val === '') {
+            num = 0;
+          } else {
+            num = parseFloat(String(val));
+            if (isNaN(num)) {
+              num = 0;
+            }
+          }
+          values.push(num);
+        }
+        numericData.push(values);
+      }
     });
     
-    return parseSamFromCsv(csvContent);
+    console.log('Excel parsing result:', {
+      columnNames,
+      rowNames,
+      dataRows: numericData.length,
+      dataCols: numericData.length > 0 ? numericData[0].length : 0
+    });
+    
+    // Validate that we have data
+    if (columnNames.length === 0 || rowNames.length === 0 || numericData.length === 0) {
+      console.error('Excel parsing failed: insufficient data extracted', {
+        columnNamesCount: columnNames.length,
+        rowNamesCount: rowNames.length,
+        dataRowsCount: numericData.length
+      });
+      return null;
+    }
+    
+    // Check that dimensions match
+    if (rowNames.length !== numericData.length) {
+      console.error('Excel parsing failed: row names count does not match data rows count', {
+        rowNamesCount: rowNames.length,
+        dataRowsCount: numericData.length
+      });
+      return null;
+    }
+    
+    // Check that each data row has the right number of columns
+    for (let i = 0; i < numericData.length; i++) {
+      if (numericData[i].length !== columnNames.length) {
+        console.error(`Excel parsing failed: row ${i} has ${numericData[i].length} values but expected ${columnNames.length}`, {
+          rowName: rowNames[i],
+          rowData: numericData[i],
+          expectedColumns: columnNames.length
+        });
+        return null;
+      }
+    }
+    
+    return { columnNames, rowNames, data: numericData };
   } catch (error) {
     console.error('Error parsing Excel:', error);
     return null;

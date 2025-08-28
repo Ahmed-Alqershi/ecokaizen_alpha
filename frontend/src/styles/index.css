@@ -73,4 +73,83 @@
     display: block !important;
     width: 100% !important;
   }
+
+  /* SAM Table Typography - Economic/Financial Style */
+  .ag-theme-alpine .ag-header-cell {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    color: #1e293b !important;
+  }
+
+  .ag-theme-alpine .ag-header-cell-text {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+  }
+
+  .ag-theme-alpine .ag-cell {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace !important;
+    font-size: 13px !important;
+    text-align: right !important;
+  }
+
+  .ag-theme-alpine .ag-cell[col-id="entryName"] {
+    text-align: left !important;
+  }
+
+  /* Economic number styling */
+  .ag-theme-alpine .ag-cell:not([col-id="entryName"]) {
+    font-variant-numeric: tabular-nums !important;
+    letter-spacing: 0.025em !important;
+  }
+
+  /* Diagonal cell styling for account balances */
+  .ag-theme-alpine .ag-cell.diagonal-cell {
+    background-color: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 500 !important;
+  }
+
+  /* SAM Grid Container styling */
+  .sam-grid-container {
+    height: auto; /* Allow height to adjust based on content */
+    width: 100% !important; /* Ensure full width */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+  }
+
+  .ag-header-cell-label {
+    font-weight: 600;
+    color: #334155;
+  }
+
+  .ag-header-cell {
+    background-color: #f8fafc; /* Light gray header background */
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .ag-cell {
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* Align numbers to the right */
+    padding-right: 8px;
+  }
+
+  .ag-cell:last-child {
+    border-right: none;
+  }
+
+  .ag-row:last-child .ag-cell {
+    border-bottom: none;
+  }
+
+  .sam-label-cell {
+    justify-content: flex-start !important; /* Align labels to the left */
+    padding-left: 12px !important;
+  }
 }

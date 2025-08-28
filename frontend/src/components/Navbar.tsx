@@ -46,7 +46,7 @@ const Navbar = () => {
                       : 'border-transparent text-midgray hover:text-darkgray'
                   }`}
                 >
-                  Model Builder
+                  Demo Lab
                 </Link>
               )}
               {username && (
@@ -58,7 +58,7 @@ const Navbar = () => {
                       : 'border-transparent text-midgray hover:text-darkgray'
                   }`}
                 >
-                  Projects
+                  Workspace
                 </Link>
               )}
               <Link

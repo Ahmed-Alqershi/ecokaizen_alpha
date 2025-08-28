@@ -18,245 +18,139 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
   const [rowData, setRowData] = useState<any[]>([]);
   const [gridApi, setGridApi] = useState<any>(null);
 
-  // Ensure we always have a valid SAM object
-  useEffect(() => {
-    console.log('SAMTable initial render', {hasEntries: sam?.entries?.length > 0, hasData: sam?.data?.length > 0});
-
-    // Force grid refresh when component mounts, even if SAM data is empty
-    return () => {
-      console.log('SAMTable component unmounting');
-    };
-  }, []);
-
-  // Log SAM data for debugging
-  useEffect(() => {
-    console.log('SAM data in SAMTable:', {
-      entries: sam.entries,
-      data: sam.data,
-      rowCount: sam.data.length,
-      colCount: sam.data.length > 0 ? sam.data[0].length : 0
-    });
-  }, [sam]);
-
   // Create column definitions based on SAM entries
   const columnDefs = useMemo(() => {
-    console.log('Creating column defs with entries:', sam?.entries || []);
-
-    if (!sam?.entries || sam.entries.length === 0) {
-      return [{
-        headerName: 'No Data',
-        field: 'dummy',
-        editable: false
-      }];
+    if (!sam || !sam.entries || sam.entries.length === 0) {
+      return [];
     }
+
+    const cols = sam.entries.map((entry, index) => ({
+      headerName: entry,
+      field: entry,
+      editable: !readOnly,
+      valueFormatter: (params: any) => {
+        if (params.value === null || params.value === undefined) {
+          return '0.00';
+        }
+        return parseFloat(params.value).toFixed(2);
+      },
+      valueParser: (params: any) => {
+        const parsed = parseFloat(params.newValue);
+        return isNaN(parsed) ? 0 : parsed;
+      },
+      cellStyle: (params: any) => {
+        if (!params || !params.node) return { backgroundColor: '#f0fdf4', border: 'none', fontWeight: 'normal' };
+        const rowIndex = params.node.rowIndex;
+
+        // Highlight diagonal cells (account balances)
+        if (rowIndex === index) {
+          return {
+            backgroundColor: '#f1f5f9',
+            border: '1px solid #cbd5e1',
+            fontWeight: '500'
+          };
+        }
+
+        // Light green background for all other cells
+        return { backgroundColor: '#f0fdf4', border: 'none', fontWeight: 'normal' };
+      },
+    }));
 
     return [
       {
-        headerName: '',
+        headerName: 'Account',
         field: 'entryName',
         editable: false,
-        width: 120,
-        pinned: 'left',
-        cellStyle: { fontWeight: 'bold' }
-      },
-      ...sam.entries.map((entry, index) => ({
-        headerName: entry,
-        field: `cell${index}`,
-        editable: !readOnly,
-        width: 100,
-        cellStyle: (params: any) => {
-          if (!params || !params.node) return null;
-          const rowIndex = params.node.rowIndex;
-          // Highlight diagonal cells (if applicable to this model)
-          if (rowIndex === index) {
-            return { backgroundColor: '#f9fafb' };
-          }
-          return null;
+        width: 140,
+        pinned: 'left' as const,
+        cellStyle: {
+          fontWeight: '600',
+          backgroundColor: '#f8fafc',
+          borderRight: '2px solid #e2e8f0',
+          color: '#1e293b',
         },
-        valueParser: (params: any) => {
-          if (!params) return 0;
-          const value = Number(params.newValue);
-          return isNaN(value) ? 0 : value;
-        }
-      }))
+        headerClass: 'sam-header-left',
+        cellClass: 'sam-label-cell',
+      },
+      ...cols,
     ];
-  }, [sam?.entries, readOnly]);
+  }, [sam.entries, readOnly]);
 
-  // Prepare row data for AgGrid
   useEffect(() => {
-    if (!sam || !sam.entries || !sam.data) {
-      console.warn('SAM is null or missing required data');
-      setRowData([]);
-      return;
-    }
-
-    if (sam.entries.length === 0) {
-      console.warn('SAM entries array is empty');
-      setRowData([]);
-      return;
-    }
-
-    try {
-      console.log('Processing SAM data for grid:', {
-        entriesLength: sam.entries.length,
-        dataLength: sam.data.length
-      });
-
-      const rows = sam.entries.map((entry, rowIndex) => {
-        const rowData: any = { entryName: entry };
-
-        // Handle case where data array is missing or too short
-        if (!sam.data || rowIndex >= sam.data.length) {
-          console.warn(`Creating empty row data for ${entry} at row ${rowIndex}`);
-          sam.entries.forEach((_, colIndex) => {
-            rowData[`cell${colIndex}`] = 0;
-          });
-          return rowData;
-        }
-
-        // Add cell data for this row
-        sam.data[rowIndex].forEach((cell, colIndex) => {
-          rowData[`cell${colIndex}`] = cell;
+    if (sam && sam.data) {
+      const newRowData = sam.data.map((row, rowIndex) => {
+        const rowObject: { [key: string]: any } = { entryName: sam.entries[rowIndex] };
+        sam.entries.forEach((colName, colIndex) => {
+          rowObject[colName] = row[colIndex];
         });
-
-        return rowData;
+        return rowObject;
       });
-
-      console.log('Created row data:', rows);
-      setRowData(rows);
-
-      // Refresh grid if API is available
-      if (gridApi) {
-        setTimeout(() => {
-          gridApi.refreshCells({ force: true });
-        }, 0);
-      }
-    } catch (error) {
-      console.error('Error creating row data:', error);
+      setRowData(newRowData);
+    } else {
+      setRowData([]);
     }
-  }, [sam, gridApi]);
-
-  // Handle cell value changes
-  const onCellValueChanged = useCallback(
-    (params: any) => {
-      if (params.oldValue === params.newValue) return;
-      
-      const rowIndex = params.node.rowIndex;
-      const colField = params.colDef.field;
-      
-      if (colField === 'entryName') return;
-      
-      const colIndex = parseInt(colField.replace('cell', ''), 10);
-      
-      // Create a deep copy of the current SAM data
-      const newData = sam.data.map(row => [...row]);
-      
-      // Update the cell value
-      newData[rowIndex][colIndex] = params.newValue;
-      
-      // Call the onChange handler with updated SAM
-      onChange({
-        ...sam,
-        data: newData
-      });
-
-      // Resize columns so the grid stays full width after edits
-      if (gridApi) {
-        setTimeout(() => {
-          gridApi.refreshCells({ force: true });
-        }, 0);
-      }
-    },
-    [sam, onChange, gridApi]
-  );
-
-  // Store the grid API when ready
-  const onGridReady = (params: any) => {
-    console.log('Grid API ready');
-    setGridApi(params.api);
-
-    // Use setTimeout to give the grid time to render before sizing columns
-    setTimeout(() => {
-      if (params.api) {
-        // Force a redraw to ensure columns are displayed properly
-        params.api.redrawRows();
-      }
-    }, 100);
-  };
-
-  // Ensure columns fit whenever the grid size changes
-  const onGridSizeChanged = useCallback(() => {
-    if (gridApi) {
-      gridApi.refreshCells({ force: true });
-    }
-  }, [gridApi]);
-
-  // Keep grid full width whenever data changes
-  useEffect(() => {
-    if (gridApi) {
-      setTimeout(() => {
-        gridApi.refreshCells({ force: true });
-      }, 0);
-    }
-  }, [rowData, gridApi]);
-
-  // Log SAM data when it changes
-  useEffect(() => {
-    console.log('SAM data changed in SAMTable:', {
-      entries: sam.entries,
-      data: sam.data ? sam.data.length : 0,
-      isEmpty: sam.entries.length === 0 || sam.data.length === 0
-    });
   }, [sam]);
+
+  const onCellValueChanged = useCallback((event: any) => {
+    const updatedMatrix = rowData.map((row) => ({ ...row })); // Deep copy
+    const rowIndex = event.node.rowIndex;
+    const colField = event.colDef.field;
+    const newValue = event.newValue;
+
+    if (rowIndex !== undefined && colField) {
+      const updatedRow = { ...updatedMatrix[rowIndex], [colField]: newValue };
+      updatedMatrix[rowIndex] = updatedRow;
+
+      // Convert back to SAM format
+      const newSamData = updatedMatrix.map((rowObj) =>
+        sam.entries.map((entry) => rowObj[entry])
+      );
+
+      const updatedSam: SAM = {
+        ...sam,
+        data: newSamData,
+      };
+      onChange(updatedSam);
+    }
+  }, [rowData, sam, onChange]);
+
+  const onGridReady = useCallback((params: any) => {
+    setGridApi(params.api);
+    params.api.sizeColumnsToFit();
+  }, []);
+
+  const onGridSizeChanged = useCallback((params: any) => {
+    params.api.sizeColumnsToFit();
+  }, []);
 
   return (
     <div className="w-full">
-      <div
-        className="ag-theme-alpine w-full max-h-[60vh] border border-midgray shadow-sm overflow-x-auto"
-      >
-        {!sam || !sam.entries || sam.entries.length === 0 ? (
-          <div className="flex flex-col h-full">
-            <div className="flex-grow flex items-center justify-center bg-neutral/50 border border-midgray/30 rounded-md">
-              <p className="text-darkgray/70">
-                Set dimensions above to display an editable SAM matrix.
-              </p>
-            </div>
-          </div>
-        ) : (
-          /* Key AG-Grid fixes:
-             1. Auto height layout to fit content
-             2. Added immutableData={false}
-             3. Added key based on entries length to force re-render
-          */
-          <AgGridReact
-            className="w-full h-full"
-            key={`sam-grid-${sam.entries.length}`}
-            columnDefs={columnDefs}
-            rowData={rowData}
-            onCellValueChanged={onCellValueChanged}
-            suppressMovableColumns={true}
-            onGridReady={onGridReady}
-            onGridSizeChanged={onGridSizeChanged}
-            defaultColDef={{
-              resizable: true,
-              sortable: false,
-              editable: !readOnly,
-              minWidth: 100
-            }}
-            domLayout="autoHeight"
-            immutableData={false}
-            rowHeight={40}
-          />
-        )}
+      <div className="ag-theme-alpine sam-grid-container">
+        <AgGridReact
+          className="w-full h-full"
+          key={`sam-grid-${sam.entries.length}`}
+          columnDefs={columnDefs}
+          rowData={rowData}
+          onCellValueChanged={onCellValueChanged}
+          suppressMovableColumns={true}
+          onGridReady={onGridReady}
+          onGridSizeChanged={onGridSizeChanged}
+          defaultColDef={{
+            resizable: true,
+            sortable: false,
+            editable: !readOnly,
+            minWidth: 110,
+            maxWidth: 150
+          }}
+          domLayout="autoHeight"
+          rowHeight={45}
+          theme="legacy"
+          suppressRowClickSelection={true}
+          suppressCellFocus={false}
+          enableCellTextSelection={true}
+        />
       </div>
 
-      {/* Debug info */}
-      <div className="mt-2 text-xs text-gray-500">
-        <p>Entries: {sam.entries ? sam.entries.length : 0} | Data rows: {sam.data ? sam.data.length : 0}</p>
-        {sam.entries && sam.entries.length > 0 && (
-          <p>SAM entries: {sam.entries.join(', ')}</p>
-        )}
-      </div>
     </div>
   );
 };

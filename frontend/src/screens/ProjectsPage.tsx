@@ -63,7 +63,7 @@ const ProjectsPage = () => {
     if (!valid) return;
 
     const project = await createProject(
-      username,
+      username || undefined,
       newName.trim(),
       newDescription.trim(),
       newTemplate
@@ -106,17 +106,17 @@ const ProjectsPage = () => {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this project?')) return;
-    await deleteProject(username, id);
+    await deleteProject(username || undefined, id);
     loadProjects();
   };
 
   const handleArchive = async (id: number) => {
-    await updateProjectStatus(username, id, 'archived');
+    await updateProjectStatus(username || undefined, id, 'archived');
     loadProjects();
   };
 
   const handleRestore = async (id: number) => {
-    await updateProjectStatus(username, id, 'open');
+    await updateProjectStatus(username || undefined, id, 'open');
     loadProjects();
   };
 
@@ -127,7 +127,7 @@ const ProjectsPage = () => {
   return (
     <div className="max-w-4xl mx-auto my-12 p-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Projects</h1>
+        <h1 className="text-2xl font-bold">Workspace</h1>
         <button
           className="btn bg-[#2F3A4A] text-white hover:bg-[#2F3A4A]/90"
           onClick={() => setShowModal(true)}
