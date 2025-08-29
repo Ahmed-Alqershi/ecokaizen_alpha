@@ -63,6 +63,17 @@ export interface ModelResults {
   };
   utility?: number;
   gdp?: number;
+  benchmark?: {
+    production: { [key: string]: number };
+    prices: { [key: string]: number };
+    wage: number;
+    incomes: { [key: string]: number };
+  };
+  professional_reports?: {
+    summary: { [key: string]: { [key: string]: number } };
+    sector_household: { [key: string]: { [key: string]: { [key: string]: number } } };
+    demand_matrix: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number } } } };
+  };
   financials?: {
     [key: string]: {
       value: number;

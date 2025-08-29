@@ -59,6 +59,7 @@ interface ModelStudioState {
   // Results and validation
   results: {
     report: { name: string; benchmark: number; solution: number; change: number }[] | null;
+    professional_reports?: any; // Added for new professional reports
   };
   
   // Error states
@@ -501,33 +502,45 @@ const ModelStudioPage = () => {
     
     try {
       const res = await solveModel('mn1', params, state.sam);
-      const table: { name: string; benchmark: number; solution: number; change: number }[] = [];
       
-      if (res.production) {
-        Object.entries(res.production).forEach(([k, v]) => {
-          const bench = 1;
-          const change = bench ? ((v - bench) / bench) * 100 : 0;
-          table.push({ name: `XS[${k}]`, benchmark: bench, solution: v, change });
-        });
+      // Check if we have professional reports (new structure)
+      if (res.professional_reports) {
+        // Use the new professional reports structure
+        dispatch({ type: 'SET_RESULTS', payload: { 
+          report: null, // Clear old report
+          professional_reports: res.professional_reports 
+        } });
+      } else {
+        // Fallback to old structure for backward compatibility
+        const table: { name: string; benchmark: number; solution: number; change: number }[] = [];
+        
+        if (res.production) {
+          Object.entries(res.production).forEach(([k, v]) => {
+            // Use benchmark values from backend if available, otherwise fallback to 1
+            const bench = res.benchmark?.production?.[k] ?? 1;
+            const change = bench ? ((v - bench) / bench) * 100 : 0;
+            table.push({ name: `XS[${k}]`, benchmark: bench, solution: v, change });
+          });
+        }
+        
+        if (res.prices) {
+          Object.entries(res.prices).forEach(([k, v]) => {
+            // Use benchmark values from backend if available, otherwise use user input prices
+            const bench = res.benchmark?.prices?.[k] ?? state.parameters.goodsPrices[state.names.goods.indexOf(k)] ?? 1;
+            const change = bench ? ((v - bench) / bench) * 100 : 0;
+            table.push({ name: `P[${k}]`, benchmark: bench, solution: v, change });
+          });
+        }
+        
+        if (typeof res.utility === 'number') {
+          const bench = 1; // Utility benchmark is always 1 for MN1
+          const v = res.utility;
+          const change = ((v - bench) / bench) * 100;
+          table.push({ name: 'U', benchmark: bench, solution: v, change });
+        }
+        
+        dispatch({ type: 'SET_RESULTS', payload: { report: table } });
       }
-      
-      if (res.prices) {
-        Object.entries(res.prices).forEach(([k, v]) => {
-          const idx = state.names.goods.indexOf(k);
-          const bench = state.parameters.goodsPrices[idx] ?? 0;
-          const change = bench ? ((v - bench) / bench) * 100 : 0;
-          table.push({ name: `P[${k}]`, benchmark: bench, solution: v, change });
-        });
-      }
-      
-      if (typeof res.utility === 'number') {
-        const bench = 1;
-        const v = res.utility;
-        const change = ((v - bench) / bench) * 100;
-        table.push({ name: 'U', benchmark: bench, solution: v, change });
-      }
-      
-      dispatch({ type: 'SET_RESULTS', payload: { report: table } });
     } catch (err) {
       console.error('Model solving error:', err);
     } finally {
@@ -1153,7 +1166,145 @@ const ModelStudioPage = () => {
               'Solve Model'
             )}
           </button>
-          {state.results.report && (
+          {state.results.professional_reports ? (
+            // Professional Reports Display
+            <div className="mt-4 space-y-6">
+              {/* Summary Report */}
+              {state.results.professional_reports.summary && (
+                <div>
+                  <h4 className="text-lg font-medium mb-4 text-blue-600">Summary Report</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border border-gray-300 rounded-lg">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 border-r border-gray-300">Indicator</th>
+                          <th className="px-4 py-2 border-r border-gray-300">Benchmark</th>
+                          <th className="px-4 py-2 border-r border-gray-300">After Shock</th>
+                          <th className="px-4 py-2">Change (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(state.results.professional_reports.summary).map(([indicator, data]: [string, any]) => (
+                          <tr key={indicator} className="hover:bg-gray-50 border-b border-gray-200">
+                            <td className="px-4 py-2 border-r border-gray-300 font-medium">{indicator}</td>
+                            <td className="px-4 py-2 border-r border-gray-300 text-right">
+                              {typeof data['Benchmark'] === 'number' ? data['Benchmark'].toFixed(4) : 'N/A'}
+                            </td>
+                            <td className="px-4 py-2 border-r border-gray-300 text-right">
+                              {typeof data['After Shock'] === 'number' ? data['After Shock'].toFixed(4) : 'N/A'}
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              {typeof data['Change (%)'] === 'number' ? data['Change (%)'].toFixed(2) + '%' : 'N/A'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Sector and Household Report */}
+              {state.results.professional_reports.sector_household && (
+                <div>
+                  <h4 className="text-lg font-medium mb-4 text-green-600">Sector & Household Report</h4>
+                  {Object.entries(state.results.professional_reports.sector_household).map(([category, categoryData]: [string, any]) => (
+                    <div key={category} className="mb-6">
+                      <h5 className="text-md font-medium mb-3 text-gray-700">{category}</h5>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border border-gray-300 rounded-lg">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 border-r border-gray-300">Item</th>
+                              <th className="px-3 py-2 border-r border-gray-300">Benchmark</th>
+                              <th className="px-3 py-2 border-r border-gray-300">After Shock</th>
+                              <th className="px-3 py-2">Change (%)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(categoryData).map(([item, itemData]: [string, any]) => (
+                              <tr key={item} className="hover:bg-gray-50 border-b border-gray-200">
+                                <td className="px-3 py-2 border-r border-gray-300 font-medium">{item}</td>
+                                <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                  {typeof itemData['Benchmark'] === 'number' ? itemData['Benchmark'].toFixed(4) : 'N/A'}
+                                </td>
+                                <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                  {typeof itemData['After Shock'] === 'number' ? itemData['After Shock'].toFixed(4) : 'N/A'}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  {typeof itemData['Change (%)'] === 'number' ? itemData['Change (%)'].toFixed(2) + '%' : 'N/A'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Demand Matrix Report */}
+              {state.results.professional_reports.demand_matrix && (
+                <div>
+                  <h4 className="text-lg font-medium mb-4 text-purple-600">Demand Matrix Report</h4>
+                  {Object.entries(state.results.professional_reports.demand_matrix).map(([category, categoryData]: [string, any]) => (
+                    <div key={category} className="mb-6">
+                      <h5 className="text-md font-medium mb-3 text-gray-700">{category}</h5>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border border-gray-300 rounded-lg">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 border-r border-gray-300">Consumer</th>
+                              <th className="px-3 py-2 border-r border-gray-300">Sector</th>
+                              <th className="px-3 py-2 border-r border-gray-300">Benchmark</th>
+                              <th className="px-3 py-2 border-r border-gray-300">After Shock</th>
+                              <th className="px-3 py-2">Change (%)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(categoryData).map(([consumer, consumerData]: [string, any]) =>
+                              Object.entries(consumerData).map(([sector, sectorData]: [string, any]) => (
+                                <tr key={`${consumer}-${sector}`} className="hover:bg-gray-50 border-b border-gray-200">
+                                  <td className="px-3 py-2 border-r border-gray-300 font-medium">{consumer}</td>
+                                  <td className="px-3 py-2 border-r border-gray-300 font-medium">{sector}</td>
+                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                    {typeof sectorData['Benchmark'] === 'number' ? sectorData['Benchmark'].toFixed(4) : 'N/A'}
+                                  </td>
+                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                    {typeof sectorData['After Shock'] === 'number' ? sectorData['After Shock'].toFixed(4) : 'N/A'}
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    {typeof sectorData['Change (%)'] === 'number' ? sectorData['Change (%)'].toFixed(2) + '%' : 'N/A'}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDownloadReportExcel}
+                  className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                >
+                  Download Excel
+                </button>
+                <button
+                  onClick={handleDownloadReportCsv}
+                  className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                >
+                  Download CSV
+                </button>
+              </div>
+            </div>
+          ) : state.results.report ? (
+            // Old Results Table (fallback)
             <div className="mt-4 space-y-4">
               <table className="w-full text-left">
                 <thead>
@@ -1190,7 +1341,7 @@ const ModelStudioPage = () => {
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
