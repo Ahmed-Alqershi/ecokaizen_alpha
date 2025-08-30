@@ -14,14 +14,17 @@ interface FileUploaderProps {
    */
   autoPopulateNames?: boolean;
   onNamesLoaded?: (goods: string[], factors: string[], households: string[]) => void;
+  onFileUploaded?: (fileInfo: UploadedFileInfo) => void;
+  uploadedFileInfo?: UploadedFileInfo;
 }
 
 interface UploadedFileInfo {
   name: string;
   size: number;
   type: string;
-  uploadedAt: Date;
+  uploadedAt: string;
   dimensions: string;
+  fileData?: string; // Base64 encoded file content
 }
 
 const FileUploader = ({
@@ -31,11 +34,70 @@ const FileUploader = ({
   households,
   autoPopulateNames = false,
   onNamesLoaded,
+  onFileUploaded,
+  uploadedFileInfo: externalUploadedFileInfo,
 }: FileUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<UploadedFileInfo | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<UploadedFileInfo | null>(externalUploadedFileInfo || null);
+
+  // Update local state when external file info changes
+  useEffect(() => {
+    setUploadedFile(externalUploadedFileInfo || null);
+  }, [externalUploadedFileInfo]);
+
+  // Re-parse and load SAM data when file info is restored from localStorage
+  useEffect(() => {
+    const restoreSamFromFileData = async () => {
+      if (externalUploadedFileInfo?.fileData && !uploadedFile) {
+        try {
+          // Decode the base64 file data
+          const binaryString = atob(externalUploadedFileInfo.fileData);
+          
+          let parsed: ParsedSam | null = null;
+          
+          if (externalUploadedFileInfo.name.endsWith('.csv')) {
+            // For CSV files, the binary string is the text content
+            parsed = parseSamFromCsv(binaryString);
+          } else if (externalUploadedFileInfo.name.endsWith('.xlsx') || externalUploadedFileInfo.name.endsWith('.xls')) {
+            // For Excel files, convert back to ArrayBuffer
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            const file = new File([bytes], externalUploadedFileInfo.name, { type: externalUploadedFileInfo.type });
+            parsed = await parseSamFromExcel(file);
+          }
+          
+          if (parsed) {
+            // Create SAM object and load it
+            const sam: SAM = {
+              entries: [...goods, ...factors, ...households],
+              goods,
+              factors,
+              households,
+              data: parsed.data,
+            };
+            
+            onSamLoaded(sam);
+            
+            // Load names if auto-populate is enabled
+            if (autoPopulateNames && onNamesLoaded) {
+              const trimmedHeader = parsed.columnNames.map(n => n.trim());
+              const goodsFromSam = trimmedHeader.slice(0, goods.length);
+              const householdsFromSam = trimmedHeader.slice(-households.length);
+              onNamesLoaded(goodsFromSam, factors, householdsFromSam);
+            }
+          }
+        } catch (error) {
+          console.error('Error restoring SAM data from file:', error);
+        }
+      }
+    };
+    
+    restoreSamFromFileData();
+  }, [externalUploadedFileInfo, uploadedFile, goods, factors, households, autoPopulateNames, onSamLoaded, onNamesLoaded]);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,12 +162,22 @@ const FileUploader = ({
     
     try {
       let parsed: ParsedSam | null = null;
+      let fileData: string = '';
       
       if (file.name.endsWith('.csv')) {
         const text = await file.text();
         parsed = parseSamFromCsv(text);
+        fileData = btoa(text); // Base64 encode CSV content
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         parsed = await parseSamFromExcel(file);
+        // Convert file to base64 for Excel files
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        fileData = btoa(binary);
       } else {
         setError('Unsupported file format. Please upload a CSV or Excel file.');
         return;
@@ -156,9 +228,20 @@ const FileUploader = ({
             name: file.name,
             size: file.size,
             type: file.type || (file.name.endsWith('.csv') ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-            uploadedAt: new Date(),
-            dimensions: `${expectedSize}×${expectedSize}`
+            uploadedAt: new Date().toISOString(),
+            dimensions: `${expectedSize}×${expectedSize}`,
+            fileData
           });
+          if (onFileUploaded) {
+            onFileUploaded({
+              name: file.name,
+              size: file.size,
+              type: file.type || (file.name.endsWith('.csv') ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+              uploadedAt: new Date().toISOString(),
+              dimensions: `${expectedSize}×${expectedSize}`,
+            fileData
+            });
+          }
         } else {
           const expectedEntries = [...goods, ...factors, ...households];
 
@@ -213,9 +296,20 @@ const FileUploader = ({
             name: file.name,
             size: file.size,
             type: file.type || (file.name.endsWith('.csv') ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-            uploadedAt: new Date(),
-            dimensions: `${expectedSize}×${expectedSize}`
+            uploadedAt: new Date().toISOString(),
+            dimensions: `${expectedSize}×${expectedSize}`,
+            fileData
           });
+          if (onFileUploaded) {
+            onFileUploaded({
+              name: file.name,
+              size: file.size,
+              type: file.type || (file.name.endsWith('.csv') ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+              uploadedAt: new Date().toISOString(),
+              dimensions: `${expectedSize}×${expectedSize}`,
+            fileData
+            });
+          }
         }
       } else {
         setError('Failed to parse the SAM data. Please check the file format.');
@@ -230,7 +324,7 @@ const FileUploader = ({
         fileInputRef.current.value = '';
       }
     }
-  }, [goods, factors, households, autoPopulateNames, onSamLoaded, onNamesLoaded]);
+  }, [goods, factors, households, autoPopulateNames, onSamLoaded, onNamesLoaded, onFileUploaded]);
 
   const handleClickUpload = () => {
     if (fileInputRef.current) {
@@ -252,6 +346,10 @@ const FileUploader = ({
     setWarning(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    // Notify parent component that file was removed
+    if (onFileUploaded) {
+      onFileUploaded(undefined as any);
     }
   };
 
@@ -283,7 +381,7 @@ const FileUploader = ({
                     <span className="font-medium">Dimensions:</span> {uploadedFile.dimensions}
                   </p>
                   <p className="text-sm text-green-600">
-                    <span className="font-medium">Uploaded:</span> {uploadedFile.uploadedAt.toLocaleString()}
+                    <span className="font-medium">Uploaded:</span> {new Date(uploadedFile.uploadedAt).toLocaleString()}
                   </p>
                 </div>
               </div>

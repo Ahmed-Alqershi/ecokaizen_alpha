@@ -13,6 +13,11 @@ const FACTOR_NAMES = ['LAB', 'CAP'];
 
 // State interface for better type safety
 interface ModelStudioState {
+  // Project information
+  project: {
+    name: string;
+  };
+  
   // Model dimensions
   dimensions: {
     industries: number;
@@ -54,12 +59,31 @@ interface ModelStudioState {
     shockSectionOpen: boolean;
     solveSectionOpen: boolean;
     solving: boolean;
+    uploadedFileInfo?: {
+      name: string;
+      size: number;
+      type: string;
+      uploadedAt: string;
+      dimensions: string;
+      fileData?: string; // Base64 encoded file content
+    };
   };
   
   // Results and validation
   results: {
     report: { name: string; benchmark: number; solution: number; change: number }[] | null;
     professional_reports?: any; // Added for new professional reports
+    scenario1?: {
+      report: { name: string; benchmark: number; solution: number; change: number }[] | null;
+      professional_reports?: any;
+      name: string;
+    };
+    scenario2?: {
+      report: { name: string; benchmark: number; solution: number; change: number }[] | null;
+      professional_reports?: any;
+      name: string;
+    };
+    comparisonMode: boolean;
   };
   
   // Error states
@@ -72,6 +96,7 @@ interface ModelStudioState {
 
 // Action types for reducer
 type ModelStudioAction =
+  | { type: 'SET_PROJECT'; payload: { name?: string } }
   | { type: 'SET_DIMENSIONS'; payload: { industries?: number; consumers?: number } }
   | { type: 'SET_NAMES'; payload: { goods?: string[]; consumers?: string[]; useSamNames?: boolean } }
   | { type: 'SET_PARAMETERS'; payload: Partial<ModelStudioState['parameters']> }
@@ -81,6 +106,8 @@ type ModelStudioAction =
   | { type: 'SET_UI_STATE'; payload: Partial<ModelStudioState['ui']> }
   | { type: 'SET_RESULTS'; payload: Partial<ModelStudioState['results']> }
   | { type: 'SET_ERRORS'; payload: Partial<ModelStudioState['errors']> }
+  | { type: 'SAVE_SCENARIO'; payload: { scenarioNumber: 1 | 2; name: string } }
+  | { type: 'TOGGLE_COMPARISON_MODE' }
   | { type: 'RESET_MODEL' };
 
 // Utility functions
@@ -118,6 +145,9 @@ const adjustNumericArray = (arr: number[], len: number, defaultValue: number): n
 
 // Initial state
 const getInitialState = (): ModelStudioState => ({
+  project: {
+    name: '',
+  },
   dimensions: {
     industries: 2,
     consumers: 1,
@@ -148,9 +178,11 @@ const getInitialState = (): ModelStudioState => ({
     shockSectionOpen: true,
     solveSectionOpen: true,
     solving: false,
+    uploadedFileInfo: undefined,
   },
   results: {
     report: null,
+    comparisonMode: false,
   },
   errors: {
     sam: '',
@@ -162,6 +194,12 @@ const getInitialState = (): ModelStudioState => ({
 // Reducer function
 const modelStudioReducer = (state: ModelStudioState, action: ModelStudioAction): ModelStudioState => {
   switch (action.type) {
+    case 'SET_PROJECT':
+      return {
+        ...state,
+        project: { ...state.project, ...action.payload },
+      };
+    
     case 'SET_DIMENSIONS': {
       const newDimensions = { ...state.dimensions, ...action.payload };
       const newGoodsNames = adjustLength(state.names.goods, newDimensions.industries, 'IND');
@@ -239,6 +277,29 @@ const modelStudioReducer = (state: ModelStudioState, action: ModelStudioAction):
         results: { ...state.results, ...action.payload },
       };
     
+    case 'SAVE_SCENARIO':
+      const scenarioData = {
+        report: state.results.report,
+        professional_reports: state.results.professional_reports,
+        name: action.payload.name,
+      };
+      return {
+        ...state,
+        results: {
+          ...state.results,
+          [`scenario${action.payload.scenarioNumber}`]: scenarioData,
+        },
+      };
+    
+    case 'TOGGLE_COMPARISON_MODE':
+      return {
+        ...state,
+        results: {
+          ...state.results,
+          comparisonMode: !state.results.comparisonMode,
+        },
+      };
+    
     case 'SET_ERRORS':
       return {
         ...state,
@@ -254,21 +315,152 @@ const modelStudioReducer = (state: ModelStudioState, action: ModelStudioAction):
 };
 
 const ModelStudioPage = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectName } = useParams<{ projectName: string }>();
   const [state, dispatch] = useReducer(modelStudioReducer, getInitialState());
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
+
+  // Load project data on mount
+  useEffect(() => {
+    if (!projectName) return;
+    const decodedName = decodeURIComponent(projectName);
+    
+    const loadProjectData = () => {
+      try {
+        const savedData = localStorage.getItem(`model-studio-${decodedName}`);
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          // Restore state from saved data
+          Object.keys(parsedData).forEach(key => {
+            if (key === 'project') {
+              dispatch({ type: 'SET_PROJECT', payload: parsedData[key] });
+            } else if (key === 'dimensions') {
+              dispatch({ type: 'SET_DIMENSIONS', payload: parsedData[key] });
+            } else if (key === 'names') {
+              dispatch({ type: 'SET_NAMES', payload: parsedData[key] });
+            } else if (key === 'parameters') {
+              dispatch({ type: 'SET_PARAMETERS', payload: parsedData[key] });
+            } else if (key === 'constraints') {
+              dispatch({ type: 'SET_CONSTRAINTS', payload: parsedData[key] });
+            } else if (key === 'sam') {
+              dispatch({ type: 'SET_SAM', payload: parsedData[key] });
+            } else if (key === 'results') {
+              dispatch({ type: 'SET_RESULTS', payload: parsedData[key] });
+            } else if (key === 'ui') {
+              dispatch({ type: 'SET_UI_STATE', payload: parsedData[key] });
+            }
+          });
+          setLastSaved(new Date(parsedData.lastSaved || Date.now()));
+          setSaveStatus('saved');
+          
+          // Update last opened timestamp
+          const currentTime = new Date().toISOString();
+          const existingProjects = JSON.parse(localStorage.getItem('workspace-projects') || '[]');
+          const projectIndex = existingProjects.findIndex((p: any) => p.name === decodedName);
+          
+          if (projectIndex >= 0) {
+            existingProjects[projectIndex] = {
+              ...existingProjects[projectIndex],
+              lastOpened: currentTime
+            };
+            localStorage.setItem('workspace-projects', JSON.stringify(existingProjects));
+          }
+        } else {
+          // If no saved data, set project name from URL
+          dispatch({ type: 'SET_PROJECT', payload: { name: decodedName } });
+        }
+      } catch (error) {
+        console.error('Error loading project data:', error);
+        setSaveStatus('error');
+      }
+    };
+    
+    loadProjectData();
+  }, [projectName]);
+
+  // Save project data function
+  const saveProjectData = useCallback(async () => {
+    if (!projectName) return;
+    const decodedName = decodeURIComponent(projectName);
+    
+    setSaveStatus('saving');
+    try {
+      const currentTime = new Date().toISOString();
+      const dataToSave = {
+        project: state.project,
+        dimensions: state.dimensions,
+        names: state.names,
+        parameters: state.parameters,
+        constraints: state.constraints,
+        sam: state.sam,
+        results: state.results,
+        ui: state.ui,
+        lastSaved: currentTime,
+      };
+      
+      // Update project metadata in localStorage for workspace display
+      const existingProjects = JSON.parse(localStorage.getItem('workspace-projects') || '[]');
+      const projectIndex = existingProjects.findIndex((p: any) => p.name === (state.project.name || decodedName));
+      
+      if (projectIndex >= 0) {
+        existingProjects[projectIndex] = {
+          ...existingProjects[projectIndex],
+          lastSaved: currentTime,
+          updated_at: currentTime
+        };
+      } else {
+        // Create new project entry if it doesn't exist
+        existingProjects.push({
+          id: Date.now(),
+          name: state.project.name || decodedName,
+          description: (state.project as any).description || '',
+          template: 'A',
+          status: 'open',
+          created_at: currentTime,
+          updated_at: currentTime,
+          lastSaved: currentTime
+        });
+      }
+      
+      localStorage.setItem('workspace-projects', JSON.stringify(existingProjects));
+      
+      localStorage.setItem(`model-studio-${decodedName}`, JSON.stringify(dataToSave));
+      setLastSaved(new Date());
+      setSaveStatus('saved');
+      
+      // Optional: Also save to backend API
+      // await fetch(`/api/projects/${decodedName}/save`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(dataToSave)
+      // });
+    } catch (error) {
+      console.error('Error saving project data:', error);
+      setSaveStatus('error');
+    }
+  }, [projectName, state]);
 
   // Auto-save functionality
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectName) return;
     
     const saveTimer = setTimeout(() => {
-      // Auto-save project state every 30 seconds
-      console.log('Auto-saving project state...', projectId);
-      // TODO: Implement auto-save API call
-    }, 30000);
+      saveProjectData();
+    }, 30000); // Auto-save every 30 seconds
 
     return () => clearTimeout(saveTimer);
-  }, [projectId, state]);
+  }, [projectName, saveProjectData]);
+
+  // Save on significant state changes
+  useEffect(() => {
+    if (!projectName) return;
+    
+    const debouncedSave = setTimeout(() => {
+      saveProjectData();
+    }, 2000); // Save 2 seconds after state change
+
+    return () => clearTimeout(debouncedSave);
+  }, [state.constraints, state.sam, state.results, saveProjectData]);
 
   // SAM validation effect
   useEffect(() => {
@@ -518,7 +710,7 @@ const ModelStudioPage = () => {
           Object.entries(res.production).forEach(([k, v]) => {
             // Use benchmark values from backend if available, otherwise fallback to 1
             const bench = res.benchmark?.production?.[k] ?? 1;
-            const change = bench ? ((v - bench) / bench) * 100 : 0;
+            const change = (bench && typeof bench === 'number' && bench !== 0) ? ((v - bench) / bench) * 100 : 0;
             table.push({ name: `XS[${k}]`, benchmark: bench, solution: v, change });
           });
         }
@@ -527,7 +719,7 @@ const ModelStudioPage = () => {
           Object.entries(res.prices).forEach(([k, v]) => {
             // Use benchmark values from backend if available, otherwise use user input prices
             const bench = res.benchmark?.prices?.[k] ?? state.parameters.goodsPrices[state.names.goods.indexOf(k)] ?? 1;
-            const change = bench ? ((v - bench) / bench) * 100 : 0;
+            const change = (bench && typeof bench === 'number' && bench !== 0) ? ((v - bench) / bench) * 100 : 0;
             table.push({ name: `P[${k}]`, benchmark: bench, solution: v, change });
           });
         }
@@ -535,7 +727,7 @@ const ModelStudioPage = () => {
         if (typeof res.utility === 'number') {
           const bench = 1; // Utility benchmark is always 1 for MN1
           const v = res.utility;
-          const change = ((v - bench) / bench) * 100;
+          const change = (bench && typeof bench === 'number' && bench !== 0) ? ((v - bench) / bench) * 100 : 0;
           table.push({ name: 'U', benchmark: bench, solution: v, change });
         }
         
@@ -555,7 +747,8 @@ const ModelStudioPage = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'sam.csv');
+    const filename = state.project.name ? `${state.project.name.replace(/[^a-zA-Z0-9]/g, '_')}_sam.csv` : 'sam.csv';
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -575,88 +768,342 @@ const ModelStudioPage = () => {
   }, [state.sam]);
 
   const handleDownloadReportCsv = useCallback(() => {
+    // Handle professional reports format
+    if (state.results.professional_reports) {
+      const csvData = [];
+      
+      // Summary Report
+      if (state.results.professional_reports.summary) {
+        csvData.push('Summary Report');
+        csvData.push('Indicator,Benchmark,After Shock,Change (%)');
+        Object.entries(state.results.professional_reports.summary).forEach(([indicator, data]: [string, any]) => {
+          const changePercent = typeof data['Change (%)'] === 'number' && !isNaN(data['Change (%)']) ? (data['Change (%)'] * 100).toFixed(2) : 'N/A';
+          csvData.push(`${indicator},${data['Benchmark'] || 'N/A'},${data['After Shock'] || 'N/A'},${changePercent}`);
+        });
+        csvData.push(''); // Empty line
+      }
+      
+      // Sector & Household Report
+      if (state.results.professional_reports.sector_household) {
+        csvData.push('Sector & Household Report');
+        Object.entries(state.results.professional_reports.sector_household).forEach(([category, categoryData]: [string, any]) => {
+          csvData.push(`${category}`);
+          csvData.push('Item,Benchmark,After Shock,Change (%)');
+          Object.entries(categoryData).forEach(([item, itemData]: [string, any]) => {
+            const changePercent = typeof itemData['Change (%)'] === 'number' && !isNaN(itemData['Change (%)']) ? (itemData['Change (%)'] * 100).toFixed(2) : 'N/A';
+            csvData.push(`${item},${itemData['Benchmark'] || 'N/A'},${itemData['After Shock'] || 'N/A'},${changePercent}`);
+          });
+          csvData.push(''); // Empty line
+        });
+      }
+      
+      const csv = csvData.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = state.project.name ? `${state.project.name.replace(/[^a-zA-Z0-9]/g, '_')}_report.csv` : 'professional_report.csv';
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    }
+    
+    // Fallback to old format
     if (!state.results.report) return;
     const header = 'Variable,Benchmark,Solution,% Change';
     const rows = state.results.report.map(
-      (r) => `${r.name},${r.benchmark},${r.solution},${r.change}`
+      (r) => `${r.name},${r.benchmark},${r.solution},${typeof r.change === 'number' && !isNaN(r.change) ? r.change.toFixed(2) : 'N/A'}`
     );
     const csv = [header, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'report.csv');
+    const filename = state.project.name ? `${state.project.name.replace(/[^a-zA-Z0-9]/g, '_')}_report.csv` : 'report.csv';
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [state.results.report]);
+  }, [state.results.report, state.results.professional_reports]);
 
   const handleDownloadReportExcel = useCallback(async () => {
-    if (!state.results.report) return;
     const wb = new ExcelJS.Workbook();
+    
+    // Handle professional reports format
+    if (state.results.professional_reports) {
+      // Summary Report Sheet
+      if (state.results.professional_reports.summary) {
+        const summaryWs = wb.addWorksheet('Summary Report');
+        summaryWs.addRow(['Indicator', 'Benchmark', 'After Shock', 'Change (%)']);
+        Object.entries(state.results.professional_reports.summary).forEach(([indicator, data]: [string, any]) => {
+          const changePercent = (() => {
+            const benchmark = data['Benchmark'];
+            const afterShock = data['After Shock'];
+            const changeValue = data['Change (%)'];
+            
+            if (typeof changeValue === 'number' && !isNaN(changeValue)) {
+              return (changeValue * 100).toFixed(2) + '%';
+            }
+            
+            if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
+              const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
+              return calculatedChange.toFixed(2) + '%';
+            }
+            
+            if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
+              return '0.00%';
+            }
+            
+            return 'N/A';
+          })();
+          summaryWs.addRow([indicator, data['Benchmark'] || 'N/A', data['After Shock'] || 'N/A', changePercent]);
+        });
+      }
+      
+      // Sector & Household Report Sheets
+      if (state.results.professional_reports.sector_household) {
+        Object.entries(state.results.professional_reports.sector_household).forEach(([category, categoryData]: [string, any]) => {
+          const categoryWs = wb.addWorksheet(category.substring(0, 31)); // Excel sheet name limit
+          categoryWs.addRow(['Item', 'Benchmark', 'After Shock', 'Change (%)']);
+          Object.entries(categoryData).forEach(([item, itemData]: [string, any]) => {
+            const changePercent = (() => {
+              const benchmark = itemData['Benchmark'];
+              const afterShock = itemData['After Shock'];
+              const changeValue = itemData['Change (%)'];
+              
+              if (typeof changeValue === 'number' && !isNaN(changeValue)) {
+                return (changeValue * 100).toFixed(2) + '%';
+              }
+              
+              if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
+                const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
+                return calculatedChange.toFixed(2) + '%';
+              }
+              
+              if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
+                return '0.00%';
+              }
+              
+              return 'N/A';
+            })();
+            categoryWs.addRow([item, itemData['Benchmark'] || 'N/A', itemData['After Shock'] || 'N/A', changePercent]);
+          });
+        });
+      }
+      
+      // Demand Matrix Report Sheets
+      if (state.results.professional_reports.demand_matrix) {
+        Object.entries(state.results.professional_reports.demand_matrix).forEach(([category, categoryData]: [string, any]) => {
+          const demandWs = wb.addWorksheet(`Demand_${category}`.substring(0, 31));
+          demandWs.addRow(['Consumer', 'Sector', 'Benchmark', 'After Shock', 'Change (%)']);
+          Object.entries(categoryData).forEach(([consumer, consumerData]: [string, any]) => {
+            Object.entries(consumerData).forEach(([sector, sectorData]: [string, any]) => {
+              const changePercent = (() => {
+                const benchmark = sectorData['Benchmark'];
+                const afterShock = sectorData['After Shock'];
+                const changeValue = sectorData['Change (%)'];
+                
+                if (typeof changeValue === 'number' && !isNaN(changeValue)) {
+                  return (changeValue * 100).toFixed(2) + '%';
+                }
+                
+                if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
+                  const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
+                  return calculatedChange.toFixed(2) + '%';
+                }
+                
+                if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
+                  return '0.00%';
+                }
+                
+                return 'N/A';
+              })();
+              demandWs.addRow([consumer, sector, sectorData['Benchmark'] || 'N/A', sectorData['After Shock'] || 'N/A', changePercent]);
+            });
+          });
+        });
+      }
+      
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = state.project.name ? `${state.project.name.replace(/[^a-zA-Z0-9]/g, '_')}_report.xlsx` : 'professional_report.xlsx';
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    }
+    
+    // Fallback to old format
+    if (!state.results.report) return;
     const ws = wb.addWorksheet('Report');
     ws.addRow(['Variable', 'Benchmark', 'Solution', '% Change']);
     state.results.report.forEach((r) => ws.addRow([r.name, r.benchmark, r.solution, r.change]));
     const buffer = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'report.xlsx');
+    const filename = state.project.name ? `${state.project.name.replace(/[^a-zA-Z0-9]/g, '_')}_report.xlsx` : 'report.xlsx';
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [state.results.report]);
+  }, [state.results.report, state.results.professional_reports]);
+
+  // Download SAM file handler
+  const handleDownloadSamFile = useCallback(() => {
+    if (!state.ui.uploadedFileInfo?.fileData) return;
+    
+    try {
+      // Decode base64 file data
+      const binaryString = atob(state.ui.uploadedFileInfo.fileData);
+      
+      // Convert binary string to Uint8Array for proper binary handling
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const blob = new Blob([bytes], { type: state.ui.uploadedFileInfo.type });
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', state.ui.uploadedFileInfo.name);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading SAM file:', error);
+    }
+  }, [state.ui.uploadedFileInfo]);
 
   return (
     <div
-      className="w-full max-w-6xl mx-auto my-12 p-4 space-y-8"
-      data-project-id={projectId}
+      className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200"
+      data-project-name={projectName}
     >
-      <div className="bg-[#2F3A4A] text-white rounded-lg p-6 text-center shadow-lg">
-        <h1 className="text-2xl font-bold mb-2">
-          Welcome to your Model Studio!
-        </h1>
-        <p>
-          Let's help you set up and run your CGE model step-by-step.
-        </p>
-      </div>
-
-      {/* SAM Setup Section */}
-      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
-        <div
-          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'samSectionOpen' } })}
-        >
-          <span className="mr-2">{state.ui.samSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">1. SAM Setup</h2>
-        </div>
-        <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
-            state.ui.samSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
-          }`}
-        >
-          <div>
-            <label className="block mb-2 font-medium">Upload SAM</label>
-            <FileUploader
-              onSamLoaded={(sam) => dispatch({ type: 'SET_SAM', payload: sam })}
-              goods={state.names.goods}
-              factors={FACTOR_NAMES}
-              households={state.names.consumers}
-              autoPopulateNames={state.names.useSamNames}
-              onNamesLoaded={(g, _f, h) => {
-                dispatch({ type: 'SET_NAMES', payload: { goods: g, consumers: h } });
-              }}
-            />
-            {state.errors.sam && (
-              <p className="mt-2 text-sm text-danger">{state.errors.sam}</p>
-            )}
+      <div className="w-full max-w-7xl mx-auto p-6 space-y-8">
+        {/* Modern Header */}
+        <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-2xl p-8 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-3 tracking-tight">
+                Model Studio
+              </h1>
+              <p className="text-slate-200 text-lg">
+                Advanced CGE modeling platform for economic analysis
+              </p>
+            </div>
+            <div className="hidden md:flex items-center space-x-4">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                <div className="text-sm text-slate-200">Project</div>
+                <div className="font-medium text-white">{state.project.name || 'Untitled Project'}</div>
+              </div>
+              
+              {/* File Upload Status */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                <div className="text-sm text-slate-200">SAM File</div>
+                <div className="flex items-center gap-2">
+                  {state.ui.uploadedFileInfo ? (
+                    <>
+                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      <button
+                        onClick={handleDownloadSamFile}
+                        className="text-green-300 hover:text-green-100 text-sm font-medium underline cursor-pointer"
+                        title="Download uploaded SAM file"
+                      >
+                        {state.ui.uploadedFileInfo.name}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                      <span className="text-red-300 text-sm">Not uploaded</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {/* Save Status Indicator */}
+              {projectName && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                  <div className="text-sm text-slate-200">Status</div>
+                  <div className="flex items-center gap-2">
+                    {saveStatus === 'saving' && (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-yellow-300" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"></path>
+                        </svg>
+                        <span className="text-yellow-300 text-sm">Saving...</span>
+                      </>
+                    )}
+                    {saveStatus === 'saved' && (
+                      <>
+                        <svg className="h-4 w-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-green-300 text-sm">Saved</span>
+                      </>
+                    )}
+                    {saveStatus === 'error' && (
+                      <>
+                        <svg className="h-4 w-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="text-red-300 text-sm">Error</span>
+                      </>
+                    )}
+                    {lastSaved && saveStatus === 'saved' && (
+                      <span className="text-slate-200 text-xs ml-2">
+                        {lastSaved.toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+        </div>
 
+        {/* SAM Setup Section */}
+        <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div
+            className="flex items-center mb-6 cursor-pointer group"
+            onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'samSectionOpen' } })}
+          >
+            <div className="flex items-center justify-center w-10 h-10 bg-slate-100 text-slate-700 rounded-full mr-4 group-hover:bg-slate-200 transition-colors">
+              <span className="text-lg font-bold">1</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-slate-800 group-hover:text-slate-600 transition-colors">SAM Setup</h2>
+              <p className="text-slate-500 text-sm">Configure your Social Accounting Matrix</p>
+            </div>
+            <div className={`transform transition-transform duration-200 ${state.ui.samSectionOpen ? 'rotate-90' : ''}`}>
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div
+            className={`bg-white rounded-2xl shadow-lg border border-gray-100 space-y-8 overflow-hidden transition-all duration-500 ${
+              state.ui.samSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
+            }`}
+          >
+          {/* Dimension Configuration */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-medium">
@@ -682,6 +1129,27 @@ const ModelStudioPage = () => {
                 onChange={(e) => handleDimensionChange('consumers', parseInt(e.target.value) || 0)}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Upload SAM</label>
+            <FileUploader
+              onSamLoaded={(sam) => dispatch({ type: 'SET_SAM', payload: sam })}
+              goods={state.names.goods}
+              factors={FACTOR_NAMES}
+              households={state.names.consumers}
+              autoPopulateNames={state.names.useSamNames}
+              onNamesLoaded={(goods, factors, households) => {
+                dispatch({ type: 'SET_NAMES', payload: { goods, consumers: households } });
+              }}
+              onFileUploaded={(fileInfo) => {
+                dispatch({ type: 'SET_UI_STATE', payload: { uploadedFileInfo: fileInfo } });
+              }}
+              uploadedFileInfo={state.ui.uploadedFileInfo}
+            />
+            {state.errors.sam && (
+              <p className="mt-2 text-sm text-danger">{state.errors.sam}</p>
+            )}
           </div>
 
           <div className="pt-2">
@@ -713,7 +1181,7 @@ const ModelStudioPage = () => {
                     </div>
                     <button
                       onClick={handleStartEditingGoods}
-                      className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                      className="bg-slate-600 hover:bg-slate-700 text-white font-medium px-4 py-2 text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                     >
                       Edit Names
                     </button>
@@ -733,13 +1201,13 @@ const ModelStudioPage = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleApplyGoodsNames}
-                        className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                        className="bg-slate-700 hover:bg-slate-800 text-white font-medium px-4 py-2 text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         Apply Changes
                       </button>
                       <button
                         onClick={handleCancelGoodsEdit}
-                        className="btn bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm transition-colors"
+                        className="bg-slate-500 hover:bg-slate-600 text-white font-medium px-4 py-2 text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         Cancel
                       </button>
@@ -766,7 +1234,7 @@ const ModelStudioPage = () => {
                     </div>
                     <button
                       onClick={handleStartEditingConsumers}
-                      className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                      className="bg-slate-600 hover:bg-slate-700 text-white font-medium px-4 py-2 text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                     >
                       Edit Names
                     </button>
@@ -786,13 +1254,13 @@ const ModelStudioPage = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleApplyConsumersNames}
-                        className="btn bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm transition-colors"
+                        className="bg-slate-700 hover:bg-slate-800 text-white font-medium px-4 py-2 text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         Apply Changes
                       </button>
                       <button
                         onClick={handleCancelConsumersEdit}
-                        className="btn bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm transition-colors"
+                        className="bg-slate-500 hover:bg-slate-600 text-white font-medium px-4 py-2 text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         Cancel
                       </button>
@@ -815,14 +1283,20 @@ const ModelStudioPage = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleDownloadCsv}
-                  className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 text-sm"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                   Download CSV
                 </button>
                 <button
                   onClick={handleDownloadExcel}
-                  className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm"
+                  className="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 text-sm"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                   Download Excel
                 </button>
               </div>
@@ -835,20 +1309,30 @@ const ModelStudioPage = () => {
         </div>
       </section>
 
-      {/* Benchmark Prices Section */}
-      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
-        <div
-          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'benchmarkSectionOpen' } })}
-        >
-          <span className="mr-2">{state.ui.benchmarkSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">2. Benchmark Prices</h2>
-        </div>
-        <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
-            state.ui.benchmarkSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
-          }`}
-        >
+        {/* Benchmark Prices Section */}
+        <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div
+            className="flex items-center mb-6 cursor-pointer group"
+            onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'benchmarkSectionOpen' } })}
+          >
+            <div className="flex items-center justify-center w-10 h-10 bg-slate-200 text-slate-700 rounded-full mr-4 group-hover:bg-slate-300 transition-colors">
+              <span className="text-lg font-bold">2</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-slate-800 group-hover:text-slate-600 transition-colors">Benchmark Prices</h2>
+              <p className="text-slate-500 text-sm">Set baseline prices for goods and labor</p>
+            </div>
+            <div className={`transform transition-transform duration-200 ${state.ui.benchmarkSectionOpen ? 'rotate-90' : ''}`}>
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div
+            className={`bg-white rounded-2xl shadow-lg border border-gray-100 space-y-8 overflow-hidden transition-all duration-500 ${
+              state.ui.benchmarkSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
+            }`}
+          >
           <div>
             <label className="block mb-2 font-medium">Price of goods (PO)</label>
             <table className="w-full text-left">
@@ -911,20 +1395,30 @@ const ModelStudioPage = () => {
         </div>
       </section>
 
-      {/* Calibration Section */}
-      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
-        <div
-          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'calibrationSectionOpen' } })}
-        >
-          <span className="mr-2">{state.ui.calibrationSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">3. Model Calibration</h2>
-        </div>
-        <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
-            state.ui.calibrationSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
-          }`}
-        >
+        {/* Calibration Section */}
+        <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div
+            className="flex items-center mb-6 cursor-pointer group"
+            onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'calibrationSectionOpen' } })}
+          >
+            <div className="flex items-center justify-center w-10 h-10 bg-slate-300 text-slate-700 rounded-full mr-4 group-hover:bg-slate-400 transition-colors">
+              <span className="text-lg font-bold">3</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-slate-800 group-hover:text-slate-600 transition-colors">Model Calibration</h2>
+              <p className="text-slate-500 text-sm">Configure model parameters and coefficients</p>
+            </div>
+            <div className={`transform transition-transform duration-200 ${state.ui.calibrationSectionOpen ? 'rotate-90' : ''}`}>
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div
+            className={`bg-white rounded-2xl shadow-lg border border-gray-100 space-y-8 overflow-hidden transition-all duration-500 ${
+              state.ui.calibrationSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
+            }`}
+          >
           <div>
             <label className="block mb-2 font-medium">Calibration Mode:</label>
             <div className="flex gap-4">
@@ -997,7 +1491,7 @@ const ModelStudioPage = () => {
                 <button
                   type="button"
                   onClick={normalizeBetaRows}
-                  className="btn bg-white border border-midgray text-darkgray hover:bg-neutral text-sm mt-2"
+                  className="bg-violet-600 hover:bg-violet-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm mt-2"
                 >
                   Normalize Rows
                 </button>
@@ -1055,20 +1549,30 @@ const ModelStudioPage = () => {
         </div>
       </section>
 
-      {/* Closure Rules Section */}
-      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
-        <div
-          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'closureSectionOpen' } })}
-        >
-          <span className="mr-2">{state.ui.closureSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">4. Define Closure Rules</h2>
-        </div>
-        <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
-            state.ui.closureSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
-          }`}
-        >
+        {/* Closure Rules Section */}
+        <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div
+            className="flex items-center mb-6 cursor-pointer group"
+            onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'closureSectionOpen' } })}
+          >
+            <div className="flex items-center justify-center w-10 h-10 bg-slate-400 text-white rounded-full mr-4 group-hover:bg-slate-500 transition-colors">
+              <span className="text-lg font-bold">4</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-slate-800 group-hover:text-slate-600 transition-colors">Define Closure Rules</h2>
+              <p className="text-slate-500 text-sm">Set model constraints and equilibrium conditions</p>
+            </div>
+            <div className={`transform transition-transform duration-200 ${state.ui.closureSectionOpen ? 'rotate-90' : ''}`}>
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div
+            className={`bg-white rounded-2xl shadow-lg border border-gray-100 space-y-8 overflow-hidden transition-all duration-500 ${
+              state.ui.closureSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
+            }`}
+          >
           <ClosureRuleBuilder
             rules={state.constraints.closureRules}
             goods={state.names.goods}
@@ -1087,20 +1591,30 @@ const ModelStudioPage = () => {
         </div>
       </section>
 
-      {/* Shocks Section */}
-      <section className={state.ui.solving ? 'opacity-50 pointer-events-none' : ''}>
-        <div
-          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'shockSectionOpen' } })}
-        >
-          <span className="mr-2">{state.ui.shockSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">5. Apply Economic Shocks</h2>
-        </div>
-        <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
-            state.ui.shockSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
-          }`}
-        >
+        {/* Shocks Section */}
+        <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div
+            className="flex items-center mb-6 cursor-pointer group"
+            onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'shockSectionOpen' } })}
+          >
+            <div className="flex items-center justify-center w-10 h-10 bg-slate-500 text-white rounded-full mr-4 group-hover:bg-slate-600 transition-colors">
+              <span className="text-lg font-bold">5</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-slate-800 group-hover:text-slate-600 transition-colors">Apply Economic Shocks</h2>
+              <p className="text-slate-500 text-sm">Define external economic disturbances</p>
+            </div>
+            <div className={`transform transition-transform duration-200 ${state.ui.shockSectionOpen ? 'rotate-90' : ''}`}>
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div
+            className={`bg-white rounded-2xl shadow-lg border border-gray-100 space-y-8 overflow-hidden transition-all duration-500 ${
+              state.ui.shockSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
+            }`}
+          >
           <ShockBuilder
             shocks={state.constraints.shocks}
             goods={state.names.goods}
@@ -1119,24 +1633,122 @@ const ModelStudioPage = () => {
         </div>
       </section>
 
-      {/* Solve & Report Section */}
-      <section>
-        <div
-          className="flex items-center mb-4 cursor-pointer text-[#2F3A4A]"
-          onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'solveSectionOpen' } })}
-        >
-          <span className="mr-2">{state.ui.solveSectionOpen ? '▼' : '►'}</span>
-          <h2 className="text-xl font-semibold">6. Solve & Generate Report</h2>
-        </div>
-        <div
-          className={`bg-white rounded-lg shadow-md space-y-6 overflow-hidden transition-all duration-300 ${
-            state.ui.solveSectionOpen ? 'max-h-[5000px] p-6' : 'max-h-0 p-0'
-          }`}
-        >
+        {/* Solve & Report Section */}
+        <section>
+          <div
+            className="flex items-center mb-6 cursor-pointer group"
+            onClick={() => dispatch({ type: 'TOGGLE_SECTION', payload: { section: 'solveSectionOpen' } })}
+          >
+            <div className="flex items-center justify-center w-10 h-10 bg-slate-600 text-white rounded-full mr-4 group-hover:bg-slate-700 transition-colors">
+              <span className="text-lg font-bold">6</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-slate-800 group-hover:text-slate-600 transition-colors">Solve & Generate Report</h2>
+              <p className="text-slate-500 text-sm">Run the model and analyze results</p>
+            </div>
+            <div className={`transform transition-transform duration-200 ${state.ui.solveSectionOpen ? 'rotate-90' : ''}`}>
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div
+            className={`bg-white rounded-2xl shadow-lg border border-gray-100 space-y-8 overflow-hidden transition-all duration-500 ${
+              state.ui.solveSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
+            }`}
+          >
+          {/* Manual Save Button */}
+          <div className="flex justify-between items-center mb-6">
+            <div></div>
+            <button
+              onClick={saveProjectData}
+              disabled={saveStatus === 'saving'}
+              className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+            >
+              {saveStatus === 'saving' ? (
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              )}
+              Save Project
+            </button>
+          </div>
+          
+          {/* Scenario Management Controls */}
+          {(state.results.report || state.results.professional_reports) && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
+              <h4 className="text-lg font-semibold text-gray-800 mb-4">Scenario Management</h4>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    const scenarioName = prompt('Enter a name for Scenario 1:', 'Baseline Scenario');
+                    if (scenarioName) {
+                      dispatch({ type: 'SAVE_SCENARIO', payload: { scenarioNumber: 1, name: scenarioName } });
+                    }
+                  }}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Save as Scenario 1
+                </button>
+                
+                {state.results.scenario1 && (
+                  <button
+                    onClick={() => {
+                      const scenarioName = prompt('Enter a name for Scenario 2:', 'Alternative Scenario');
+                      if (scenarioName) {
+                        dispatch({ type: 'SAVE_SCENARIO', payload: { scenarioNumber: 2, name: scenarioName } });
+                      }
+                    }}
+                    className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Save as Scenario 2
+                  </button>
+                )}
+                
+                {state.results.scenario1 && state.results.scenario2 && (
+                  <button
+                    onClick={() => dispatch({ type: 'TOGGLE_COMPARISON_MODE' })}
+                    className={`font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 ${
+                      state.results.comparisonMode 
+                        ? 'bg-orange-600 hover:bg-orange-700 text-white' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    {state.results.comparisonMode ? 'Exit Comparison' : 'Compare Scenarios'}
+                  </button>
+                )}
+              </div>
+              
+              {state.results.scenario1 && (
+                <div className="mt-4 text-sm text-gray-600">
+                  <span className="font-medium">Saved Scenarios:</span>
+                  <span className="ml-2 bg-cyan-100 text-cyan-800 px-2 py-1 rounded">{state.results.scenario1.name}</span>
+                  {state.results.scenario2 && (
+                    <span className="ml-2 bg-sky-100 text-sky-800 px-2 py-1 rounded">{state.results.scenario2.name}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
           <button
             onClick={handleSolve}
             disabled={state.ui.solving}
-            className="btn btn-primary flex items-center justify-center"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center text-lg"
           >
             {state.ui.solving ? (
               <>
@@ -1180,24 +1792,59 @@ const ModelStudioPage = () => {
                           <th className="px-4 py-2 border-r border-gray-300">Indicator</th>
                           <th className="px-4 py-2 border-r border-gray-300">Benchmark</th>
                           <th className="px-4 py-2 border-r border-gray-300">After Shock</th>
-                          <th className="px-4 py-2">Change (%)</th>
+                          <th className="px-4 py-2 border-r border-gray-300">Change (%)</th>
+                          {state.results.comparisonMode && state.results.scenario1 && (
+                            <th className="px-4 py-2 bg-cyan-50 text-cyan-700">{state.results.scenario1.name}</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.entries(state.results.professional_reports.summary).map(([indicator, data]: [string, any]) => (
-                          <tr key={indicator} className="hover:bg-gray-50 border-b border-gray-200">
-                            <td className="px-4 py-2 border-r border-gray-300 font-medium">{indicator}</td>
-                            <td className="px-4 py-2 border-r border-gray-300 text-right">
-                              {typeof data['Benchmark'] === 'number' ? data['Benchmark'].toFixed(4) : 'N/A'}
-                            </td>
-                            <td className="px-4 py-2 border-r border-gray-300 text-right">
-                              {typeof data['After Shock'] === 'number' ? data['After Shock'].toFixed(4) : 'N/A'}
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              {typeof data['Change (%)'] === 'number' ? data['Change (%)'].toFixed(2) + '%' : 'N/A'}
-                            </td>
-                          </tr>
-                        ))}
+                        {Object.entries(state.results.professional_reports.summary).map(([indicator, data]: [string, any]) => {
+                          const scenario1Data = state.results.comparisonMode && state.results.scenario1?.professional_reports?.summary?.[indicator];
+                          return (
+                            <tr key={indicator} className="hover:bg-gray-50 border-b border-gray-200">
+                              <td className="px-4 py-2 border-r border-gray-300 font-medium">{indicator}</td>
+                              <td className="px-4 py-2 border-r border-gray-300 text-right">
+                                {typeof data['Benchmark'] === 'number' ? data['Benchmark'].toFixed(4) : 'N/A'}
+                              </td>
+                              <td className="px-4 py-2 border-r border-gray-300 text-right">
+                                {typeof data['After Shock'] === 'number' ? data['After Shock'].toFixed(4) : 'N/A'}
+                              </td>
+                              <td className="px-4 py-2 border-r border-gray-300 text-right">
+                                {(() => {
+                                  const benchmark = data['Benchmark'];
+                                  const afterShock = data['After Shock'];
+                                  const changePercent = data['Change (%)'];
+                                  
+                                  if (typeof changePercent === 'number' && !isNaN(changePercent)) {
+                                    return (changePercent * 100).toFixed(2) + '%';
+                                  }
+                                  
+                                  // Calculate manually if change percent is missing but we have benchmark and after shock
+                                  if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
+                                    const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
+                                    return calculatedChange.toFixed(2) + '%';
+                                  }
+                                  
+                                  // If benchmark and after shock are the same, it's 0% change
+                                  if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
+                                    return '0.00%';
+                                  }
+                                  
+                                  return 'N/A';
+                                })()}
+                              </td>
+                              {state.results.comparisonMode && state.results.scenario1 && (
+                                <td className="px-4 py-2 bg-cyan-50 text-right">
+                                  {scenario1Data && typeof scenario1Data['After Shock'] === 'number' 
+                                    ? scenario1Data['After Shock'].toFixed(4) 
+                                    : 'N/A'
+                                  }
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1218,24 +1865,59 @@ const ModelStudioPage = () => {
                               <th className="px-3 py-2 border-r border-gray-300">Item</th>
                               <th className="px-3 py-2 border-r border-gray-300">Benchmark</th>
                               <th className="px-3 py-2 border-r border-gray-300">After Shock</th>
-                              <th className="px-3 py-2">Change (%)</th>
+                              <th className="px-3 py-2 border-r border-gray-300">Change (%)</th>
+                              {state.results.comparisonMode && state.results.scenario1 && (
+                                <th className="px-3 py-2 bg-cyan-50 text-cyan-700">{state.results.scenario1.name}</th>
+                              )}
                             </tr>
                           </thead>
                           <tbody>
-                            {Object.entries(categoryData).map(([item, itemData]: [string, any]) => (
-                              <tr key={item} className="hover:bg-gray-50 border-b border-gray-200">
-                                <td className="px-3 py-2 border-r border-gray-300 font-medium">{item}</td>
-                                <td className="px-3 py-2 border-r border-gray-300 text-right">
-                                  {typeof itemData['Benchmark'] === 'number' ? itemData['Benchmark'].toFixed(4) : 'N/A'}
-                                </td>
-                                <td className="px-3 py-2 border-r border-gray-300 text-right">
-                                  {typeof itemData['After Shock'] === 'number' ? itemData['After Shock'].toFixed(4) : 'N/A'}
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  {typeof itemData['Change (%)'] === 'number' ? itemData['Change (%)'].toFixed(2) + '%' : 'N/A'}
-                                </td>
-                              </tr>
-                            ))}
+                            {Object.entries(categoryData).map(([item, itemData]: [string, any]) => {
+                              const scenario1Data = state.results.comparisonMode && state.results.scenario1?.professional_reports?.sector_household?.[category]?.[item];
+                              return (
+                                <tr key={item} className="hover:bg-gray-50 border-b border-gray-200">
+                                  <td className="px-3 py-2 border-r border-gray-300 font-medium">{item}</td>
+                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                    {typeof itemData['Benchmark'] === 'number' ? itemData['Benchmark'].toFixed(4) : 'N/A'}
+                                  </td>
+                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                    {typeof itemData['After Shock'] === 'number' ? itemData['After Shock'].toFixed(4) : 'N/A'}
+                                  </td>
+                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                    {(() => {
+                                      const benchmark = itemData['Benchmark'];
+                                      const afterShock = itemData['After Shock'];
+                                      const changePercent = itemData['Change (%)'];
+                                      
+                                      if (typeof changePercent === 'number' && !isNaN(changePercent)) {
+                                        return (changePercent * 100).toFixed(2) + '%';
+                                      }
+                                      
+                                      // Calculate manually if change percent is missing but we have benchmark and after shock
+                                      if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
+                                        const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
+                                        return calculatedChange.toFixed(2) + '%';
+                                      }
+                                      
+                                      // If benchmark and after shock are the same, it's 0% change
+                                      if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
+                                        return '0.00%';
+                                      }
+                                      
+                                      return 'N/A';
+                                    })()}
+                                  </td>
+                                  {state.results.comparisonMode && state.results.scenario1 && (
+                                    <td className="px-3 py-2 bg-cyan-50 text-right">
+                                      {scenario1Data && typeof scenario1Data['After Shock'] === 'number' 
+                                        ? scenario1Data['After Shock'].toFixed(4) 
+                                        : 'N/A'
+                                      }
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1259,26 +1941,61 @@ const ModelStudioPage = () => {
                               <th className="px-3 py-2 border-r border-gray-300">Sector</th>
                               <th className="px-3 py-2 border-r border-gray-300">Benchmark</th>
                               <th className="px-3 py-2 border-r border-gray-300">After Shock</th>
-                              <th className="px-3 py-2">Change (%)</th>
+                              <th className="px-3 py-2 border-r border-gray-300">Change (%)</th>
+                              {state.results.comparisonMode && state.results.scenario1 && (
+                                <th className="px-3 py-2 bg-cyan-50 text-cyan-700">{state.results.scenario1.name}</th>
+                              )}
                             </tr>
                           </thead>
                           <tbody>
                             {Object.entries(categoryData).map(([consumer, consumerData]: [string, any]) =>
-                              Object.entries(consumerData).map(([sector, sectorData]: [string, any]) => (
-                                <tr key={`${consumer}-${sector}`} className="hover:bg-gray-50 border-b border-gray-200">
-                                  <td className="px-3 py-2 border-r border-gray-300 font-medium">{consumer}</td>
-                                  <td className="px-3 py-2 border-r border-gray-300 font-medium">{sector}</td>
-                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
-                                    {typeof sectorData['Benchmark'] === 'number' ? sectorData['Benchmark'].toFixed(4) : 'N/A'}
-                                  </td>
-                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
-                                    {typeof sectorData['After Shock'] === 'number' ? sectorData['After Shock'].toFixed(4) : 'N/A'}
-                                  </td>
-                                  <td className="px-3 py-2 text-right">
-                                    {typeof sectorData['Change (%)'] === 'number' ? sectorData['Change (%)'].toFixed(2) + '%' : 'N/A'}
-                                  </td>
-                                </tr>
-                              ))
+                              Object.entries(consumerData).map(([sector, sectorData]: [string, any]) => {
+                                const scenario1Data = state.results.comparisonMode && state.results.scenario1?.professional_reports?.demand_matrix?.[category]?.[consumer]?.[sector];
+                                return (
+                                  <tr key={`${consumer}-${sector}`} className="hover:bg-gray-50 border-b border-gray-200">
+                                    <td className="px-3 py-2 border-r border-gray-300 font-medium">{consumer}</td>
+                                    <td className="px-3 py-2 border-r border-gray-300 font-medium">{sector}</td>
+                                    <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                      {typeof sectorData['Benchmark'] === 'number' ? sectorData['Benchmark'].toFixed(4) : 'N/A'}
+                                    </td>
+                                    <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                      {typeof sectorData['After Shock'] === 'number' ? sectorData['After Shock'].toFixed(4) : 'N/A'}
+                                    </td>
+                                    <td className="px-3 py-2 border-r border-gray-300 text-right">
+                                      {(() => {
+                                        const benchmark = sectorData['Benchmark'];
+                                        const afterShock = sectorData['After Shock'];
+                                        const changePercent = sectorData['Change (%)'];
+                                        
+                                        if (typeof changePercent === 'number' && !isNaN(changePercent)) {
+                                          return (changePercent * 100).toFixed(2) + '%';
+                                        }
+                                        
+                                        // Calculate manually if change percent is missing but we have benchmark and after shock
+                                        if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
+                                          const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
+                                          return calculatedChange.toFixed(2) + '%';
+                                        }
+                                        
+                                        // If benchmark and after shock are the same, it's 0% change
+                                        if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
+                                          return '0.00%';
+                                        }
+                                        
+                                        return 'N/A';
+                                      })()}
+                                    </td>
+                                    {state.results.comparisonMode && state.results.scenario1 && (
+                                      <td className="px-3 py-2 bg-cyan-50 text-right">
+                                        {scenario1Data && typeof scenario1Data['After Shock'] === 'number' 
+                                          ? scenario1Data['After Shock'].toFixed(4) 
+                                          : 'N/A'
+                                        }
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })
                             )}
                           </tbody>
                         </table>
@@ -1306,24 +2023,37 @@ const ModelStudioPage = () => {
           ) : state.results.report ? (
             // Old Results Table (fallback)
             <div className="mt-4 space-y-4">
-              <table className="w-full text-left">
-                <thead>
+              <table className="w-full text-left border border-gray-300 rounded-lg">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="pb-2">Variable</th>
-                    <th className="pb-2">Benchmark</th>
-                    <th className="pb-2">Solution</th>
-                    <th className="pb-2">% Change</th>
+                    <th className="px-4 py-2 border-r border-gray-300">Variable</th>
+                    <th className="px-4 py-2 border-r border-gray-300">Benchmark</th>
+                    <th className="px-4 py-2 border-r border-gray-300">Solution</th>
+                    <th className="px-4 py-2 border-r border-gray-300">% Change</th>
+                    {state.results.comparisonMode && state.results.scenario1 && (
+                      <th className="px-4 py-2 bg-blue-50 text-blue-700">{state.results.scenario1.name}</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {state.results.report.map((r) => (
-                    <tr key={r.name} className="align-top">
-                      <td className="py-1 pr-2">{r.name}</td>
-                      <td className="py-1">{r.benchmark.toFixed(2)}</td>
-                      <td className="py-1">{r.solution.toFixed(2)}</td>
-                      <td className="py-1">{r.change.toFixed(2)}%</td>
-                    </tr>
-                  ))}
+                  {state.results.report.map((r) => {
+                    const scenario1Item = state.results.comparisonMode && state.results.scenario1?.report?.find(item => item.name === r.name);
+                    return (
+                      <tr key={r.name} className="hover:bg-gray-50 border-b border-gray-200">
+                        <td className="px-4 py-2 border-r border-gray-300 font-medium">{r.name}</td>
+                        <td className="px-4 py-2 border-r border-gray-300 text-right">{r.benchmark.toFixed(2)}</td>
+                        <td className="px-4 py-2 border-r border-gray-300 text-right">{r.solution.toFixed(2)}</td>
+                        <td className="px-4 py-2 border-r border-gray-300 text-right">
+                          {typeof r.change === 'number' && !isNaN(r.change) ? r.change.toFixed(2) + '%' : 'N/A'}
+                        </td>
+                        {state.results.comparisonMode && state.results.scenario1 && (
+                          <td className="px-4 py-2 bg-blue-50 text-right">
+                            {scenario1Item ? scenario1Item.solution.toFixed(2) : 'N/A'}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               <div className="flex gap-2">
@@ -1344,6 +2074,7 @@ const ModelStudioPage = () => {
           ) : null}
         </div>
       </section>
+      </div>
     </div>
   );
 };

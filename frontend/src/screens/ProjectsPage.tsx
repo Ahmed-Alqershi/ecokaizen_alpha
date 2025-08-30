@@ -21,7 +21,7 @@ const ProjectsPage = () => {
   const [newTemplate, setNewTemplate] = useState('');
   const [nameError, setNameError] = useState('');
   const [templateError, setTemplateError] = useState('');
-  const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
+  const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name' | 'lastSaved'>('lastSaved');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'open' | 'archived'>('open');
 
@@ -42,8 +42,33 @@ const ProjectsPage = () => {
 
   const loadProjects = async () => {
     if (!username) return;
-    const data = await listProjects(username);
-    setProjects(data);
+    
+    // Load projects from localStorage (Model Studio projects)
+    const localProjects = JSON.parse(localStorage.getItem('workspace-projects') || '[]');
+    
+    // Load projects from API (if any)
+    const apiProjects = await listProjects(username);
+    
+    // Merge and deduplicate projects, prioritizing localStorage data for timestamps
+    const mergedProjects = [...apiProjects];
+    
+    localProjects.forEach((localProject: any) => {
+      const existingIndex = mergedProjects.findIndex(p => p.name === localProject.name);
+      if (existingIndex >= 0) {
+        // Update existing project with localStorage data
+        mergedProjects[existingIndex] = {
+          ...mergedProjects[existingIndex],
+          ...localProject,
+          // Ensure we keep the API id if it exists
+          id: mergedProjects[existingIndex].id
+        };
+      } else {
+        // Add new project from localStorage
+        mergedProjects.push(localProject);
+      }
+    });
+    
+    setProjects(mergedProjects);
   };
 
   useEffect(() => {
@@ -75,7 +100,8 @@ const ProjectsPage = () => {
     setNameError('');
     setTemplateError('');
     if (project && newTemplate === 'A') {
-      navigate(`/projects/${project.id}/builder`);
+      const encodedName = encodeURIComponent(project.name);
+      navigate(`/projects/${encodedName}/model_studio`);
     } else {
       loadProjects();
     }
@@ -96,6 +122,16 @@ const ProjectsPage = () => {
         ? a.name.localeCompare(b.name)
         : b.name.localeCompare(a.name);
     }
+    
+    // Handle lastSaved sorting
+    if (sortBy === 'lastSaved') {
+      const aTime = (a as any).lastSaved || a.updated_at;
+      const bTime = (b as any).lastSaved || b.updated_at;
+      return sortOrder === 'asc'
+        ? new Date(aTime).getTime() - new Date(bTime).getTime()
+        : new Date(bTime).getTime() - new Date(aTime).getTime();
+    }
+    
     return sortOrder === 'asc'
       ? new Date(a[sortBy]).getTime() - new Date(b[sortBy]).getTime()
       : new Date(b[sortBy]).getTime() - new Date(a[sortBy]).getTime();
@@ -120,8 +156,30 @@ const ProjectsPage = () => {
     loadProjects();
   };
 
-  const handleOpen = (id: number) => {
-    navigate(`/projects/${id}/builder`);
+  const handleOpen = (project: any) => {
+    // Update last opened timestamp
+    const currentTime = new Date().toISOString();
+    const existingProjects = JSON.parse(localStorage.getItem('workspace-projects') || '[]');
+    const projectIndex = existingProjects.findIndex((p: any) => p.name === project.name);
+    
+    if (projectIndex >= 0) {
+      existingProjects[projectIndex] = {
+        ...existingProjects[projectIndex],
+        lastOpened: currentTime
+      };
+    } else {
+      // Create new entry if it doesn't exist
+      existingProjects.push({
+        ...project,
+        lastOpened: currentTime,
+        lastSaved: project.lastSaved || project.updated_at
+      });
+    }
+    
+    localStorage.setItem('workspace-projects', JSON.stringify(existingProjects));
+    
+    const encodedName = encodeURIComponent(project.name);
+    navigate(`/projects/${encodedName}/model_studio`);
   };
 
   return (
@@ -165,6 +223,7 @@ const ProjectsPage = () => {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
             >
+              <option value="lastSaved">Last Saved</option>
               <option value="updated_at">Updated</option>
               <option value="created_at">Created</option>
               <option value="name">Name</option>
@@ -216,7 +275,7 @@ const ProjectsPage = () => {
                   <div className="flex items-start space-x-3">
                     <button
                       className="p-1 hover:opacity-80"
-                      onClick={() => handleOpen(p.id)}
+                      onClick={() => handleOpen(p)}
                       title="Open Project"
                       aria-label="Open project"
                     >
@@ -255,7 +314,7 @@ const ProjectsPage = () => {
                   <p>
                     <span className="font-bold">Created on:</span> {formatDate(p.created_at)}{' '}
                     <span className="mx-2">—</span>
-                    <span className="font-bold">Updated on:</span> {formatDate(p.updated_at)}
+                    <span className="font-bold">Last saved:</span> {formatDate((p as any).lastSaved || p.updated_at)}
                   </p>
                 </div>
               </div>

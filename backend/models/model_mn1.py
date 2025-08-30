@@ -127,7 +127,19 @@ class ClosureRuleBuilder:
 
             try:
                 if rule.indices:
-                    index = tuple(rule.indices)
+                    # Handle two-dimensional variables like XD (demand)
+                    if rule.variable in ['D', 'XD'] and len(rule.indices) == 1:
+                        # Parse "CONSA_Bread" into ("Bread", "CONSA") for XD[inds, consumers]
+                        parts = rule.indices[0].split('_')
+                        if len(parts) == 2:
+                            consumer, industry = parts
+                            index = (industry, consumer)  # XD domain is [inds, consumers]
+                        else:
+                            print(f"⚠️ Warning: Invalid demand index format '{rule.indices[0]}'. Expected 'consumer_industry'.")
+                            continue
+                    else:
+                        index = tuple(rule.indices)
+                    
                     if is_variable:
                         obj.fx[index] = benchmark[index] * rule.multiplier
                     else:
@@ -185,7 +197,19 @@ class ShockBuilder:
 
             try:
                 if shock.indices:
-                    index = tuple(shock.indices)
+                    # Handle two-dimensional variables like XD (demand)
+                    if shock.target in ['D', 'XD'] and len(shock.indices) == 1:
+                        # Parse "CONSA_Bread" into ("Bread", "CONSA") for XD[inds, consumers]
+                        parts = shock.indices[0].split('_')
+                        if len(parts) == 2:
+                            consumer, industry = parts
+                            index = (industry, consumer)  # XD domain is [inds, consumers]
+                        else:
+                            print(f"⚠️ Warning: Invalid demand index format '{shock.indices[0]}'. Expected 'consumer_industry'.")
+                            continue
+                    else:
+                        index = tuple(shock.indices)
+                    
                     if is_variable:
                         obj.fx[index] = benchmark[index] * shock.multiplier
                     else:
@@ -430,8 +454,8 @@ def solve_mn1_core(
         for rule in closure_rules:
             closure_builder.add_rule(rule['variable'], rule.get('indices', []))
         
-        obj_map = {"XD": XD, "R": R, "PROFITOT": PROFITOT, "XS": XS, "LD": LD, "PROFIT": PROFIT, "P": P, "W": W, "LS": LS}
-        benchmark_map = {"XD": XDO, "R": RO, "PROFITOT": PROFITOTO, "XS": XSO, "LD": LDO, "PROFIT": PROFITO, "P": PO, "W": WO, "LS": LSO}
+        obj_map = {"XD": XD, "D": XD, "R": R, "PROFITOT": PROFITOT, "XS": XS, "LD": LD, "PROFIT": PROFIT, "P": P, "W": W, "LS": LS}
+        benchmark_map = {"XD": XDO, "D": XDO, "R": RO, "PROFITOT": PROFITOTO, "XS": XSO, "LD": LDO, "PROFIT": PROFITO, "P": PO, "W": WO, "LS": LSO}
         closure_builder.apply(obj_map, benchmark_map)
     
     # Apply shocks if provided
@@ -440,8 +464,8 @@ def solve_mn1_core(
         for shock in shocks:
             shock_builder.add_shock(shock['target'], shock.get('indices', []), shock['multiplier'])
         
-        obj_map = {"XD": XD, "R": R, "PROFITOT": PROFITOT, "XS": XS, "LD": LD, "PROFIT": PROFIT, "P": P, "W": W, "LS": LS, "A": A, "BETA": BETA, "ALPHA": ALPHA}
-        benchmark_map = {"XD": XDO, "R": RO, "PROFITOT": PROFITOTO, "XS": XSO, "LD": LDO, "PROFIT": PROFITO, "P": PO, "W": WO, "LS": LSO}
+        obj_map = {"XD": XD, "D": XD, "R": R, "PROFITOT": PROFITOT, "XS": XS, "LD": LD, "PROFIT": PROFIT, "P": P, "W": W, "LS": LS, "A": A, "BETA": BETA, "ALPHA": ALPHA}
+        benchmark_map = {"XD": XDO, "D": XDO, "R": RO, "PROFITOT": PROFITOTO, "XS": XSO, "LD": LDO, "PROFIT": PROFITO, "P": PO, "W": WO, "LS": LSO}
         shock_builder.apply(obj_map, benchmark_map)
     
     # Declare and solve the model
