@@ -42,32 +42,24 @@ const ProjectsPage = () => {
 
   const loadProjects = async () => {
     if (!username) return;
-    
-    // Load projects from localStorage (Model Studio projects)
-    const localProjects = JSON.parse(localStorage.getItem('workspace-projects') || '[]');
-    
-    // Load projects from API (if any)
+
+    // Load lightweight local metadata (timestamps only)
+    const localProjects: any[] = JSON.parse(localStorage.getItem('workspace-projects') || '[]');
+
+    // Load projects from API (source of truth for id/status/name/etc.)
     const apiProjects = await listProjects(username);
-    
-    // Merge and deduplicate projects, prioritizing localStorage data for timestamps
-    const mergedProjects = [...apiProjects];
-    
-    localProjects.forEach((localProject: any) => {
-      const existingIndex = mergedProjects.findIndex(p => p.name === localProject.name);
-      if (existingIndex >= 0) {
-        // Update existing project with localStorage data
-        mergedProjects[existingIndex] = {
-          ...mergedProjects[existingIndex],
-          ...localProject,
-          // Ensure we keep the API id if it exists
-          id: mergedProjects[existingIndex].id
-        };
-      } else {
-        // Add new project from localStorage
-        mergedProjects.push(localProject);
-      }
+
+    // Merge only timestamp-ish metadata from localStorage into API projects by name
+    const mergedProjects = apiProjects.map((apiProject) => {
+      const meta = localProjects.find((lp) => lp.name === apiProject.name);
+      if (!meta) return apiProject;
+      return {
+        ...apiProject,
+        lastSaved: (meta as any).lastSaved || (apiProject as any).lastSaved,
+        lastOpened: (meta as any).lastOpened || (apiProject as any).lastOpened,
+      } as any;
     });
-    
+
     setProjects(mergedProjects);
   };
 
@@ -77,7 +69,8 @@ const ProjectsPage = () => {
 
   const handleSave = async () => {
     let valid = true;
-    if (!newName.trim()) {
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
       setNameError('Project name is required');
       valid = false;
     }
@@ -85,11 +78,19 @@ const ProjectsPage = () => {
       setTemplateError('Template is required');
       valid = false;
     }
+    // Prevent duplicate names (case-insensitive)
+    const nameExists = projects.some(
+      (p) => p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (nameExists) {
+      setNameError('A project with this name already exists. Please choose a different name.');
+      valid = false;
+    }
     if (!valid) return;
 
     const project = await createProject(
       username || undefined,
-      newName.trim(),
+      trimmedName,
       newDescription.trim(),
       newTemplate
     );
@@ -100,6 +101,10 @@ const ProjectsPage = () => {
     setNameError('');
     setTemplateError('');
     if (project && newTemplate === 'A') {
+      // Ensure any stale local saved state for this project name is cleared
+      try {
+        localStorage.removeItem(`model-studio-${project.name}`);
+      } catch {}
       const encodedName = encodeURIComponent(project.name);
       navigate(`/projects/${encodedName}/model_studio`);
     } else {
@@ -108,7 +113,25 @@ const ProjectsPage = () => {
   };
 
   const formatDate = (str: string) => {
-    const d = new Date(str);
+    // Normalize different timestamp formats to ensure consistent local timezone display
+    let d: Date;
+    try {
+      if (typeof str === 'string') {
+        const s = str.trim();
+        if (s.includes('T')) {
+          // ISO format, possibly with timezone info
+          d = new Date(s);
+        } else {
+          // Likely a SQLite timestamp like "YYYY-MM-DD HH:MM:SS" (assume UTC)
+          // Convert to ISO by inserting 'T' and appending 'Z' to treat as UTC
+          d = new Date(s.replace(' ', 'T') + 'Z');
+        }
+      } else {
+        d = new Date(str);
+      }
+    } catch {
+      d = new Date(str);
+    }
     const day = d.getDate().toString().padStart(2, '0');
     const month = (d.getMonth() + 1).toString().padStart(2, '0');
     const year = d.getFullYear().toString().slice(-2);
@@ -143,6 +166,17 @@ const ProjectsPage = () => {
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this project?')) return;
     await deleteProject(username || undefined, id);
+    // Also remove any local metadata for this project by name
+    const p = projects.find((proj) => proj.id === id);
+    if (p) {
+      const local = JSON.parse(localStorage.getItem('workspace-projects') || '[]');
+      const filtered = local.filter((lp: any) => lp.name !== p.name);
+      localStorage.setItem('workspace-projects', JSON.stringify(filtered));
+      // Remove any persisted Model Studio state for this project name
+      try {
+        localStorage.removeItem(`model-studio-${p.name}`);
+      } catch {}
+    }
     loadProjects();
   };
 
