@@ -15,13 +15,9 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
   const [indirectValues, setIndirectValues] = useState<number[]>([]);
   const [incomeValues, setIncomeValues] = useState<number[]>([]);
   
-  // For debugging
+  // Initialize and react to SAM changes
   useEffect(() => {
-    console.log('ParameterInputs - SAM:', {
-      goods: sam.goods,
-      factors: sam.factors,
-      households: sam.households
-    });
+    // no-op: reserved for future side effects when SAM changes
   }, [sam]);
 
   // Initialize with default values or provided initialParams
@@ -52,10 +48,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
         setIncomeValues(defIncome);
       }
 
-      console.log('ParameterInputs - Initial values:', {
-        alpha: defaultAlpha,
-        b: defaultB
-      });
+      // initialized defaults
     }
   // Note: removing `initialParams` from dependencies prevents a reinitialization
   // loop when parent components update the parameters state.

@@ -224,7 +224,6 @@ def send_contact_email(name: str, email: str, message: str):
             server.send_message(msg)
         return True, 'Message sent'
     except Exception as e:
-        print(f'Error sending email: {e}')
         return False, str(e)
 
 @app.route('/solve-model', methods=['POST'])
@@ -245,9 +244,7 @@ def solve_model():
 
         sam = data.get('sam')
 
-        print(f"Solving model with template: {template_id}")
-        print(f"Parameters: {params}")
-        print(f"SAM provided: {'Yes' if sam else 'No'}")
+        
 
         # For MVP, we only support the simple CGE model
         if template_id == 'simple-cge':
@@ -256,8 +253,7 @@ def solve_model():
             except RequestValidationError as exc:
                 return jsonify({'error': exc.message}), exc.status_code
 
-            print(f"Alpha parameters: {alpha_input}")
-            print(f"B parameters: {b_input}")
+            
 
             # If a custom SAM is provided, use the dynamic model
             if sam:
@@ -271,36 +267,27 @@ def solve_model():
                 sam_data = sam_info['data']
 
                 if len(alpha_input) != len(sectors):
-                    print(
-                        f"Warning: Alpha parameters count ({len(alpha_input)}) doesn't match sector count ({len(sectors)}). Adjusting..."
-                    )
+                    
                     alpha_input = adjust_parameter_list(alpha_input, len(sectors), 1.0 / len(sectors))
                     total = sum(alpha_input)
                     if total:
                         alpha_input = [a / total for a in alpha_input]
-                    print(f"Adjusted alpha parameters: {alpha_input}")
 
                 if len(b_input) != len(sectors):
-                    print(
-                        f"Warning: B parameters count ({len(b_input)}) doesn't match sector count ({len(sectors)}). Adjusting..."
-                    )
+                    
                     b_input = adjust_parameter_list(b_input, len(sectors), 1.0)
-                    print(f"Adjusted b parameters: {b_input}")
+                    
 
-                print(f"Using dynamic model with {len(sectors)} sectors, {len(factors)} factors, {len(households)} households")
-                print(f"SAM data has {len(sam_data)} rows")
+                
 
                 try:
                     # Solve the dynamic model
                     container = dynamic_solve(sectors, factors, households, sam_data, alpha_input, b_input)
                     results = extract_results(container)
-                    print("Model solved successfully")
                     return jsonify(results)
                 except Exception as model_error:
                     error_message = f"Error solving dynamic model: {str(model_error)}"
                     stack_trace = traceback.format_exc()
-                    print(error_message)
-                    print(stack_trace)
                     return jsonify({
                         'error': error_message,
                         'trace': stack_trace,
@@ -308,7 +295,7 @@ def solve_model():
                     }), 500
 
             # Otherwise, use the default model
-            print("Using default model with predefined SAM")
+            
             try:
                 container = add_input_solve(b_input, alpha_input)
 
@@ -352,10 +339,8 @@ def solve_model():
                 try:
                     gdp = sum(production.values())
                 except Exception as gdp_error:
-                    print(f"Error calculating GDP: {str(gdp_error)}")
                     gdp = 0
 
-                print("Default model solved successfully")
                 return jsonify({
                     'prices': prices,
                     'production': production,
@@ -365,8 +350,6 @@ def solve_model():
             except Exception as default_model_error:
                 error_message = f"Error solving default model: {str(default_model_error)}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({
                     'error': error_message,
                     'trace': stack_trace,
@@ -380,8 +363,6 @@ def solve_model():
             except Exception as cam_error:
                 error_message = f"Error solving Cameroon model: {cam_error}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         elif template_id == 'korea-cge':
@@ -392,8 +373,6 @@ def solve_model():
             except Exception as kor_error:
                 error_message = f"Error solving Korea model: {kor_error}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         elif template_id == 'saudi-cge':
@@ -405,8 +384,6 @@ def solve_model():
             except Exception as sau_error:
                 error_message = f"Error solving Saudi model: {sau_error}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         elif template_id in ('mn1', 'mn1-cge'):
@@ -418,8 +395,6 @@ def solve_model():
             except Exception as mn1_error:
                 error_message = f"Error solving MN1 model: {mn1_error}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         else:
@@ -430,8 +405,6 @@ def solve_model():
     except Exception as e:
         error_message = f"Error solving model: {str(e)}"
         stack_trace = traceback.format_exc()
-        print(error_message)
-        print(stack_trace)
         return jsonify({
             'error': error_message,
             'trace': stack_trace,
@@ -672,10 +645,7 @@ def compare_scenarios():
 
         sam = data.get('sam')
 
-        print(f"Comparing scenarios with template: {template_id}")
-        print(f"Baseline params: {baseline_params}")
-        print(f"Scenario params: {scenario_params}")
-        print(f"SAM provided: {'Yes' if sam else 'No'}")
+        
 
         if template_id == 'korea-cge':
             try:
@@ -711,8 +681,6 @@ def compare_scenarios():
             except Exception as kor_err:
                 error_message = f"Error comparing Korea scenarios: {kor_err}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         elif template_id == 'saudi-cge':
@@ -749,8 +717,6 @@ def compare_scenarios():
             except Exception as sau_err:
                 error_message = f"Error comparing Saudi scenarios: {sau_err}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({'error': error_message, 'trace': stack_trace}), 500
 
         if sam:
@@ -790,11 +756,8 @@ def compare_scenarios():
             scenario_alpha = normalize_alpha(scenario_alpha)
 
             try:
-                print(f"Solving baseline model with custom SAM")
                 baseline_container = dynamic_solve(sectors, factors, households, sam_data, baseline_alpha, baseline_b)
                 baseline_results = extract_results(baseline_container)
-
-                print(f"Solving scenario model with custom SAM")
                 scenario_container = dynamic_solve(sectors, factors, households, sam_data, scenario_alpha, scenario_b)
                 scenario_results = extract_results(scenario_container)
 
@@ -822,7 +785,6 @@ def compare_scenarios():
                             'percentChange': float(percent_change)
                         }
                     except (ValueError, TypeError) as e:
-                        print(f"Error calculating price difference for {key}: {e}")
                         price_diffs[key] = {
                             'value': 0,
                             'percentChange': 0
@@ -840,7 +802,6 @@ def compare_scenarios():
                             'percentChange': float(percent_change)
                         }
                     except (ValueError, TypeError) as e:
-                        print(f"Error calculating production difference for {key}: {e}")
                         production_diffs[key] = {
                             'value': 0,
                             'percentChange': 0
@@ -851,7 +812,6 @@ def compare_scenarios():
                     utility_diff = float(scenario_utility) - float(baseline_utility)
                     utility_percent = (utility_diff / float(baseline_utility)) * 100 if float(baseline_utility) != 0 else 0
                 except (ValueError, TypeError, ZeroDivisionError) as e:
-                    print(f"Error calculating utility difference: {e}")
                     utility_diff = 0
                     utility_percent = 0
 
@@ -859,11 +819,10 @@ def compare_scenarios():
                     gdp_diff = float(scenario_gdp) - float(baseline_gdp)
                     gdp_percent = (gdp_diff / float(baseline_gdp)) * 100 if float(baseline_gdp) != 0 else 0
                 except (ValueError, TypeError, ZeroDivisionError) as e:
-                    print(f"Error calculating GDP difference: {e}")
                     gdp_diff = 0
                     gdp_percent = 0
 
-                print("Scenario comparison with custom SAM completed successfully")
+                
                 return jsonify({
                     'baseline': baseline_results,
                     'scenario': scenario_results,
@@ -883,8 +842,6 @@ def compare_scenarios():
             except Exception as model_error:
                 error_message = f"Error during dynamic model comparison: {str(model_error)}"
                 stack_trace = traceback.format_exc()
-                print(error_message)
-                print(stack_trace)
                 return jsonify({
                     'error': error_message,
                     'trace': stack_trace,
@@ -907,10 +864,10 @@ def compare_scenarios():
             scenario_alpha = adjust_parameter_list(scenario_alpha, 2, 0.5)
             scenario_b = adjust_parameter_list(scenario_b, 2, 1.0)
 
-            print(f"Solving baseline model with default SAM")
+            
             baseline_container = add_input_solve(baseline_b, baseline_alpha)
 
-            print(f"Solving scenario model with default SAM")
+            
             scenario_container = add_input_solve(scenario_b, scenario_alpha)
 
             # Function to safely extract records
@@ -988,7 +945,6 @@ def compare_scenarios():
                         'percentChange': float(percent_change)
                     }
                 except (ValueError, TypeError, ZeroDivisionError) as e:
-                    print(f"Error calculating price diff for {key}: {e}")
                     price_diffs[key] = {'value': 0, 'percentChange': 0}
 
             production_diffs = {}
@@ -1003,7 +959,6 @@ def compare_scenarios():
                         'percentChange': float(percent_change)
                     }
                 except (ValueError, TypeError, ZeroDivisionError) as e:
-                    print(f"Error calculating production diff for {key}: {e}")
                     production_diffs[key] = {'value': 0, 'percentChange': 0}
 
             # Calculate other differences
@@ -1021,7 +976,7 @@ def compare_scenarios():
                 gdp_diff = 0
                 gdp_percent = 0
 
-            print("Scenario comparison with default SAM completed successfully")
+            
             return jsonify({
                 'baseline': baseline_results,
                 'scenario': scenario_results,
@@ -1041,8 +996,6 @@ def compare_scenarios():
         except Exception as default_error:
             error_message = f"Error in default model comparison: {str(default_error)}"
             stack_trace = traceback.format_exc()
-            print(error_message)
-            print(stack_trace)
             return jsonify({
                 'error': error_message,
                 'trace': stack_trace,
@@ -1051,8 +1004,6 @@ def compare_scenarios():
     except Exception as e:
         error_message = f"Error comparing scenarios: {str(e)}"
         stack_trace = traceback.format_exc()
-        print(error_message)
-        print(stack_trace)
         return jsonify({
             'error': error_message,
             'trace': stack_trace,
@@ -1061,7 +1012,7 @@ def compare_scenarios():
 
 @app.route('/generate-random-sam', methods=['POST'])
 def generate_random_sam():
-    print("Received generate-random-sam request")
+    
     try:
         # Validate request data
         if not request.is_json:
@@ -1102,8 +1053,7 @@ def generate_random_sam():
         if household_names is not None and not isinstance(household_names, list):
             return jsonify({'error': 'householdNames must be an array'}), 400
 
-        print(f"Generating SAM with dimensions: sectors={sectors}, factors={factors}, households={households}")
-        print(f"Custom names: sectors={sector_names}, factors={factor_names}, households={household_names}")
+        
 
         # Generate a balanced SAM
         try:
@@ -1123,25 +1073,19 @@ def generate_random_sam():
 
             if missing_keys:
                 error_msg = f"Generated SAM is missing required properties: {', '.join(missing_keys)}"
-                print(error_msg)
                 return jsonify({'error': error_msg}), 500
 
             # Verify data dimensions
             if len(sam_result['data']) != len(sam_result['entries']):
                 error_msg = f"SAM data dimensions mismatch: data rows={len(sam_result['data'])}, entries={len(sam_result['entries'])}"
-                print(error_msg)
                 return jsonify({'error': error_msg}), 500
 
             for row in sam_result['data']:
                 if len(row) != len(sam_result['entries']):
                     error_msg = f"SAM data dimensions mismatch: row length={len(row)}, entries={len(sam_result['entries'])}"
-                    print(error_msg)
                     return jsonify({'error': error_msg}), 500
 
-            print(f"SAM generated successfully with dimensions {len(sam_result['entries'])}x{len(sam_result['entries'])}")
-            print(f"Sectors: {sam_result['goods']}")
-            print(f"Factors: {sam_result['factors']}")
-            print(f"Households: {sam_result['households']}")
+            
 
             # Return successful result
             return jsonify({
@@ -1154,8 +1098,6 @@ def generate_random_sam():
         except Exception as sam_error:
             error_message = f"Error in SAM generation: {str(sam_error)}"
             stack_trace = traceback.format_exc()
-            print(error_message)
-            print(stack_trace)
             return jsonify({
                 'error': error_message,
                 'trace': stack_trace,
@@ -1165,8 +1107,6 @@ def generate_random_sam():
     except Exception as e:
         error_message = f"Error in generate_random_sam handler: {str(e)}"
         stack_trace = traceback.format_exc()
-        print(error_message)
-        print(stack_trace)
         return jsonify({
             'error': error_message,
             'trace': stack_trace,

@@ -202,17 +202,8 @@ const ModelBuilderPage = () => {
 
   // Update the SAM template when dimensions change
   useEffect(() => {
-    console.log('Dimensions change effect running', {
-      currentStep,
-      useCustomModel,
-      sectorCount,
-      factorCount,
-      householdCount,
-      samConfigured,
-    });
 
     if (currentStep === 3 && useCustomModel && !samConfigured) {
-      console.log('Generating empty SAM for step 3 customization');
 
       // Generate an empty SAM template with the current dimensions
       const emptySam = generateEmptySam(
@@ -224,7 +215,7 @@ const ModelBuilderPage = () => {
         useCustomNames ? householdNames : undefined
       );
 
-      console.log('Generated empty SAM:', emptySam);
+      
 
       // Set the SAM data with the empty template
       setSamData(emptySam);
@@ -252,7 +243,6 @@ const ModelBuilderPage = () => {
   
   // Handle customization choice
   const handleCustomizationChoice = (isCustom: boolean) => {
-    console.log('Customization choice made:', isCustom);
     if (isCustom && selectedTemplate?.id !== 'simple-cge') {
       setError(
         'Customization for this model is currently unavailable. This feature will be added soon.'
@@ -266,7 +256,6 @@ const ModelBuilderPage = () => {
       // If running as-is, skip to solving
       handleSolveModel();
     } else {
-      console.log('Creating empty SAM for customization');
 
       // Generate an initial empty SAM with the current dimensions
       const emptySam = generateEmptySam(
@@ -278,7 +267,7 @@ const ModelBuilderPage = () => {
         useCustomNames ? householdNames : undefined
       );
 
-      console.log('Generated initial empty SAM:', emptySam);
+      
 
       // Set SAM data before changing step to ensure it's available when the component renders
       setSamData(emptySam);
@@ -414,7 +403,6 @@ const ModelBuilderPage = () => {
       await saveRun(username, templateId, modelParameters, isCustomSam ? samData : undefined, results);
       setCurrentStep(4);
     } catch (err) {
-      console.error('Error solving model:', err);
       
       // Handle error message
       let errorMessage = 'An error occurred while solving the model';
@@ -477,7 +465,6 @@ const ModelBuilderPage = () => {
       );
       setCurrentStep(6);
     } catch (err) {
-      console.error('Error comparing scenarios:', err);
       
       // Handle error message
       let errorMessage = 'An error occurred while comparing scenarios';

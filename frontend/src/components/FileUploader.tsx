@@ -91,7 +91,7 @@ const FileUploader = ({
             }
           }
         } catch (error) {
-          console.error('Error restoring SAM data from file:', error);
+          
         }
       }
     };
@@ -315,7 +315,6 @@ const FileUploader = ({
         setError('Failed to parse the SAM data. Please check the file format.');
       }
     } catch (err) {
-      console.error('Error processing file:', err);
       setError('An error occurred while processing the file. Please try again.');
     } finally {
       setIsProcessing(false);

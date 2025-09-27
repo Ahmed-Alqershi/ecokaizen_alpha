@@ -1,9 +1,11 @@
 import { useParams } from 'react-router-dom';
-import { useReducer, useEffect, useCallback, useState } from 'react';
+import { useReducer, useEffect, useCallback, useState, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
 import SAMTable from '../components/SAMTable';
 import ClosureRuleBuilder from '../components/ClosureRuleBuilder';
 import ShockBuilder from '../components/ShockBuilder';
+import HouseholdAnalyticsMatrix from '../components/HouseholdAnalyticsMatrix';
+import SectorAnalyticsMatrix from '../components/SectorAnalyticsMatrix';
 import { exportSamToCsv, exportSamToExcel } from '../utils/samUtils';
 import { SAM, ClosureRule, Shock, ModelParameters } from '../utils/types';
 import { solveModel } from '../utils/api';
@@ -59,6 +61,7 @@ interface ModelStudioState {
     shockSectionOpen: boolean;
     solveSectionOpen: boolean;
     solving: boolean;
+    solveError?: string;
     uploadedFileInfo?: {
       name: string;
       size: number;
@@ -178,6 +181,7 @@ const getInitialState = (): ModelStudioState => ({
     shockSectionOpen: true,
     solveSectionOpen: true,
     solving: false,
+    solveError: undefined,
     uploadedFileInfo: undefined,
   },
   results: {
@@ -370,7 +374,6 @@ const ModelStudioPage = () => {
           dispatch({ type: 'SET_PROJECT', payload: { name: decodedName } });
         }
       } catch (error) {
-        console.error('Error loading project data:', error);
         setSaveStatus('error');
       }
     };
@@ -435,7 +438,6 @@ const ModelStudioPage = () => {
       //   body: JSON.stringify(dataToSave)
       // });
     } catch (error) {
-      console.error('Error saving project data:', error);
       setSaveStatus('error');
     }
   }, [projectName, state]);
@@ -677,7 +679,7 @@ const ModelStudioPage = () => {
   }, [state.parameters.betaMatrix]);
 
   const handleSolve = useCallback(async () => {
-    dispatch({ type: 'SET_UI_STATE', payload: { solving: true } });
+    dispatch({ type: 'SET_UI_STATE', payload: { solving: true, solveError: undefined } });
     dispatch({ type: 'SET_RESULTS', payload: { report: null } });
     
     const params: ModelParameters = {
@@ -725,16 +727,33 @@ const ModelStudioPage = () => {
         }
         
         if (typeof res.utility === 'number') {
-          const bench = 1; // Utility benchmark is always 1 for MN1
+          const benchNum: number = 1; // Utility benchmark is always 1 for MN1
           const v = res.utility;
-          const change = (bench && typeof bench === 'number' && bench !== 0) ? ((v - bench) / bench) * 100 : 0;
-          table.push({ name: 'U', benchmark: bench, solution: v, change });
+          const change = benchNum !== 0 ? ((v - benchNum) / benchNum) * 100 : 0;
+          table.push({ name: 'U', benchmark: benchNum, solution: v, change });
         }
         
         dispatch({ type: 'SET_RESULTS', payload: { report: table } });
       }
     } catch (err) {
-      console.error('Model solving error:', err);
+      let errorMessage = 'Failed to solve the model. Please check your parameters and try again.';
+      
+      if (err instanceof Error) {
+        // Check for specific error types
+        if (err.message.includes('InfeasibleLocal')) {
+          errorMessage = 'Model did not solve optimally. The problem may be infeasible with the current parameters. Try adjusting your shocks or closure rules.';
+        } else if (err.message.includes('Unbounded')) {
+          errorMessage = 'Model is unbounded. Please check your constraints and parameter values.';
+        } else if (err.message.includes('Optimal')) {
+          errorMessage = 'Model failed to find an optimal solution. Consider revising your model parameters.';
+        } else if (err.message.includes('timeout') || err.message.includes('Timeout')) {
+          errorMessage = 'Model solving timed out. Try simplifying your model or reducing the complexity.';
+        } else {
+          errorMessage = `Model solving failed: ${err.message}`;
+        }
+      }
+      
+      dispatch({ type: 'SET_UI_STATE', payload: { solveError: errorMessage } });
     } finally {
       dispatch({ type: 'SET_UI_STATE', payload: { solving: false } });
     }
@@ -960,6 +979,107 @@ const ModelStudioPage = () => {
     URL.revokeObjectURL(url);
   }, [state.results.report, state.results.professional_reports]);
 
+  // ===== Enhanced Summary KPIs and Insights =====
+  const summaryKpis = useMemo(() => {
+    const pr: any = (state.results as any)?.professional_reports;
+    if (!pr || !pr.summary) return [] as Array<{ key: string; benchmark: number; after: number; pct: number }>;
+    const toPct = (b: any, a: any, c: any): number => {
+      if (typeof c === 'number' && !isNaN(c)) return c * 100;
+      if (typeof b === 'number' && typeof a === 'number' && b !== 0) return ((a - b) / b) * 100;
+      return 0;
+    };
+    return Object.entries(pr.summary).map(([key, data]: [string, any]) => ({
+      key,
+      benchmark: data?.['Benchmark'],
+      after: data?.['After Shock'],
+      pct: toPct(data?.['Benchmark'], data?.['After Shock'], data?.['Change (%)'])
+    }));
+  }, [state.results?.professional_reports]);
+
+  const scenarioKpis = useMemo(() => {
+    const scen: any = (state.results as any)?.scenario1?.professional_reports;
+    if (!scen || !scen.summary) return [] as Array<{ key: string; benchmark: number; after: number; pct: number }>;
+    const toPct = (b: any, a: any, c: any): number => {
+      if (typeof c === 'number' && !isNaN(c)) return c * 100;
+      if (typeof b === 'number' && typeof a === 'number' && b !== 0) return ((a - b) / b) * 100;
+      return 0;
+    };
+    return Object.entries(scen.summary).map(([key, data]: [string, any]) => ({
+      key,
+      benchmark: data?.['Benchmark'],
+      after: data?.['After Shock'],
+      pct: toPct(data?.['Benchmark'], data?.['After Shock'], data?.['Change (%)'])
+    }));
+  }, [state.results?.scenario1]);
+
+  const scenarioKpiMap = useMemo(() => {
+    const map: Record<string, { benchmark: number; after: number; pct: number }> = {};
+    scenarioKpis.forEach((k) => (map[k.key] = { benchmark: k.benchmark, after: k.after, pct: k.pct }));
+    return map;
+  }, [scenarioKpis]);
+
+  const generatedInsights = useMemo(() => {
+    const pr: any = (state.results as any)?.professional_reports;
+    if (!pr) return [] as string[];
+    const insights: string[] = [];
+    // KPI movements
+    summaryKpis.forEach((k) => {
+      if (typeof k.after === 'number' && Math.abs(k.pct) >= 0.01) {
+        insights.push(`${k.key} ${k.pct >= 0 ? 'increased' : 'decreased'} by ${Math.abs(k.pct).toFixed(2)}% to ${k.after.toFixed(4)}.`);
+      }
+    });
+    const sh = pr.sector_household || {};
+    const findCat = (name: string) => {
+      const key = Object.keys(sh).find((k) => k.toLowerCase() === name.toLowerCase());
+      return key ? sh[key] : undefined;
+    };
+    const pctFrom = (b: any, a: any, c: any) => (typeof c === 'number' && !isNaN(c) ? c * 100 : typeof b === 'number' && typeof a === 'number' && b !== 0 ? ((a - b) / b) * 100 : 0);
+
+    // Price movers
+    const priceCat = findCat('Price');
+    if (priceCat) {
+      const movers = Object.entries(priceCat)
+        .map(([item, d]: [string, any]) => ({ item, pct: pctFrom(d['Benchmark'], d['After Shock'], d['Change (%)']) }))
+        .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+        .slice(0, 2)
+        .filter((m) => Math.abs(m.pct) > 0.001);
+      if (movers.length) insights.push(`Biggest price movers: ${movers.map((m) => `${m.item} ${m.pct >= 0 ? '+' : ''}${m.pct.toFixed(2)}%`).join(', ')}.`);
+    }
+
+    // Labor demand breadth
+    const laborDemand = findCat('Labor Demand');
+    if (laborDemand) {
+      let up = 0,
+        down = 0;
+      Object.values(laborDemand).forEach((d: any) => {
+        const pct = pctFrom((d as any)['Benchmark'], (d as any)['After Shock'], (d as any)['Change (%)']);
+        if (pct > 0) up++;
+        else if (pct < 0) down++;
+      });
+      if (up || down) insights.push(`Labor demand increased in ${up} sector(s) and decreased in ${down}.`);
+    }
+
+    // Supply breadth
+    const supply = findCat('Supply');
+    if (supply) {
+      let up = 0,
+        down = 0;
+      Object.values(supply).forEach((d: any) => {
+        const pct = pctFrom((d as any)['Benchmark'], (d as any)['After Shock'], (d as any)['Change (%)']);
+        if (pct > 0) up++;
+        else if (pct < 0) down++;
+      });
+      if (up || down) insights.push(`Supply rose in ${up} sector(s) and fell in ${down}.`);
+    }
+    return insights.slice(0, 5);
+  }, [state.results?.professional_reports, summaryKpis]);
+
+  // Visibility controls for tables
+  const [showSummaryTable, setShowSummaryTable] = useState(true);
+  const [showSectorHousehold, setShowSectorHousehold] = useState(true);
+  const [showDemandMatrix, setShowDemandMatrix] = useState(true);
+  const [demandMatrixMode, setDemandMatrixMode] = useState<'table' | 'matrix'>('table');
+
   // Download SAM file handler
   const handleDownloadSamFile = useCallback(() => {
     if (!state.ui.uploadedFileInfo?.fileData) return;
@@ -986,7 +1106,7 @@ const ModelStudioPage = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error downloading SAM file:', error);
+      
     }
   }, [state.ui.uploadedFileInfo]);
 
@@ -1139,7 +1259,7 @@ const ModelStudioPage = () => {
               factors={FACTOR_NAMES}
               households={state.names.consumers}
               autoPopulateNames={state.names.useSamNames}
-              onNamesLoaded={(goods, factors, households) => {
+              onNamesLoaded={(goods, _factors, households) => {
                 dispatch({ type: 'SET_NAMES', payload: { goods, consumers: households } });
               }}
               onFileUploaded={(fileInfo) => {
@@ -1657,27 +1777,6 @@ const ModelStudioPage = () => {
               state.ui.solveSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
             }`}
           >
-          {/* Manual Save Button */}
-          <div className="flex justify-between items-center mb-6">
-            <div></div>
-            <button
-              onClick={saveProjectData}
-              disabled={saveStatus === 'saving'}
-              className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
-            >
-              {saveStatus === 'saving' ? (
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"></path>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              )}
-              Save Project
-            </button>
-          </div>
           
           {/* Scenario Management Controls */}
           {(state.results.report || state.results.professional_reports) && (
@@ -1778,13 +1877,190 @@ const ModelStudioPage = () => {
               'Solve Model'
             )}
           </button>
+          
+          {/* Error Message */}
+          {state.ui.solveError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-red-800 mb-1">Model Solving Failed</h4>
+                  <p className="text-sm text-red-700">{state.ui.solveError}</p>
+                  <button
+                    onClick={() => dispatch({ type: 'SET_UI_STATE', payload: { solveError: undefined } })}
+                    className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {state.results.professional_reports ? (
             // Professional Reports Display
-            <div className="mt-4 space-y-6">
+            <div className="mt-6 space-y-6">
+              {/* Hero Analytics Dashboard */}
+              {summaryKpis.length > 0 && (
+                <div className="relative mb-8">
+                  {/* Animated gradient background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 rounded-3xl opacity-[0.07] animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-tl from-emerald-500 via-cyan-500 to-blue-500 rounded-3xl opacity-[0.05]"></div>
+                  
+                  <div className="relative bg-white/70 backdrop-blur-xl border border-white/30 rounded-3xl p-8 shadow-2xl">
+                    {/* Header Section */}
+                    <div className="mb-8 text-center">
+                      <div className="inline-flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                          <span className="text-white text-2xl">📈</span>
+                        </div>
+                        <div>
+                          <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                            Economic Impact Analytics
+                          </h3>
+                          <p className="text-gray-600 text-sm mt-1">Real-time insights from your policy simulation</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* KPI Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {summaryKpis.slice(0, 8).map((kpi, index) => {
+                        const gradients = [
+                          'from-blue-500 to-cyan-500',
+                          'from-purple-500 to-pink-500', 
+                          'from-emerald-500 to-teal-500',
+                          'from-orange-500 to-red-500',
+                          'from-indigo-500 to-purple-500',
+                          'from-green-500 to-emerald-500',
+                          'from-rose-500 to-pink-500',
+                          'from-yellow-500 to-orange-500'
+                        ];
+                        const gradient = gradients[index % gradients.length];
+                        const icons = ['💰', '📊', '📈', '🎯', '⚡', '🚀', '💎', '🔥'];
+                        const icon = icons[index % icons.length];
+                        
+                        return (
+                          <div key={kpi.key} className="group relative">
+                            {/* Glow effect */}
+                            <div className={`absolute -inset-0.5 bg-gradient-to-r ${gradient} rounded-2xl opacity-20 group-hover:opacity-40 transition-all duration-500 blur-sm group-hover:blur-none`}></div>
+                            
+                            {/* Main card */}
+                            <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/50 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1">
+                              
+                              {/* Header with icon */}
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="text-xs uppercase tracking-widest text-gray-500 font-bold">
+                                  {kpi.key.length > 12 ? kpi.key.substring(0, 12) + '...' : kpi.key}
+                                </div>
+                                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg transform group-hover:rotate-12 transition-transform duration-300`}>
+                                  <span className="text-white text-lg">{icon}</span>
+                                </div>
+                              </div>
+                              
+                              {/* Main metric */}
+                              <div className="mb-3">
+                                <div className="text-2xl font-bold text-gray-800 mb-1">
+                                  {typeof kpi.after === 'number' ? kpi.after.toFixed(4) : 'N/A'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Baseline: {typeof kpi.benchmark === 'number' ? kpi.benchmark.toFixed(4) : 'N/A'}
+                                </div>
+                              </div>
+                              
+                              {/* Change indicator */}
+                              <div className="flex items-center justify-between">
+                                <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold ${
+                                  kpi.pct >= 0 
+                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
+                                    : 'bg-red-100 text-red-700 border border-red-200'
+                                }`}>
+                                  <span className="mr-1.5 text-sm">
+                                    {kpi.pct >= 0 ? '↗️' : '↘️'}
+                                  </span>
+                                  {kpi.pct >= 0 ? '+' : ''}{kpi.pct.toFixed(2)}%
+                                </div>
+                                
+                                {/* Scenario comparison badge */}
+                                {state.results?.comparisonMode && (state.results as any)?.scenario1 && scenarioKpiMap[kpi.key] && (
+                                  <div className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium border ${
+                                    scenarioKpiMap[kpi.key].pct >= 0 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200'
+                                  }`}>
+                                    <span className="mr-1">📊</span>
+                                    {scenarioKpiMap[kpi.key].pct >= 0 ? '+' : ''}{scenarioKpiMap[kpi.key].pct.toFixed(1)}%
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Percentage change indicator */}
+                              <div className="mt-4">
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div 
+                                    className={`${
+                                      kpi.pct >= 0 
+                                        ? 'bg-gradient-to-r from-emerald-400 to-green-500' 
+                                        : 'bg-gradient-to-r from-red-400 to-red-500'
+                                    } h-1.5 rounded-full transition-all duration-1000 ease-out`}
+                                    style={{ width: `${Math.min(Math.abs(kpi.pct), 100)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Key Insights */}
+              {generatedInsights.length > 0 && (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl opacity-10"></div>
+                  <div className="relative bg-white/80 backdrop-blur-sm border border-white/40 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                        <span className="text-white text-lg">💡</span>
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                          Key Insights
+                        </h4>
+                        <p className="text-xs text-gray-500">Important findings from your simulation results</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {generatedInsights.map((i, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-white text-xs font-bold">{idx + 1}</span>
+                          </div>
+                          <p className="text-sm text-gray-700 leading-relaxed">{i}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Summary Report */}
-              {state.results.professional_reports.summary && (
+              {state.results.professional_reports.summary && summaryKpis.length === 0 && (
                 <div>
-                  <h4 className="text-lg font-medium mb-4 text-blue-600">Summary Report</h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-lg font-medium text-blue-600">Detailed Summary</h4>
+                    <button
+                      className="text-sm text-blue-700 hover:text-blue-900 underline"
+                      onClick={() => setShowSummaryTable((v) => !v)}
+                    >
+                      {showSummaryTable ? 'Hide' : 'Show'} Table
+                    </button>
+                  </div>
+                  {showSummaryTable && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border border-gray-300 rounded-lg">
                       <thead className="bg-gray-50">
@@ -1848,91 +2124,119 @@ const ModelStudioPage = () => {
                       </tbody>
                     </table>
                   </div>
+                  )}
                 </div>
               )}
 
-              {/* Sector and Household Report */}
+              {/* Household Analytics Matrix */}
               {state.results.professional_reports.sector_household && (
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl opacity-8"></div>
+                  <div className="relative bg-white/75 backdrop-blur-sm border border-white/40 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                          <span className="text-white text-lg">🏠</span>
+                        </div>
                 <div>
-                  <h4 className="text-lg font-medium mb-4 text-green-600">Sector & Household Report</h4>
-                  {Object.entries(state.results.professional_reports.sector_household).map(([category, categoryData]: [string, any]) => (
-                    <div key={category} className="mb-6">
-                      <h5 className="text-md font-medium mb-3 text-gray-700">{category}</h5>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border border-gray-300 rounded-lg">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-3 py-2 border-r border-gray-300">Item</th>
-                              <th className="px-3 py-2 border-r border-gray-300">Benchmark</th>
-                              <th className="px-3 py-2 border-r border-gray-300">After Shock</th>
-                              <th className="px-3 py-2 border-r border-gray-300">Change (%)</th>
-                              {state.results.comparisonMode && state.results.scenario1 && (
-                                <th className="px-3 py-2 bg-cyan-50 text-cyan-700">{state.results.scenario1.name}</th>
-                              )}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Object.entries(categoryData).map(([item, itemData]: [string, any]) => {
-                              const scenario1Data = state.results.comparisonMode && state.results.scenario1?.professional_reports?.sector_household?.[category]?.[item];
-                              return (
-                                <tr key={item} className="hover:bg-gray-50 border-b border-gray-200">
-                                  <td className="px-3 py-2 border-r border-gray-300 font-medium">{item}</td>
-                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
-                                    {typeof itemData['Benchmark'] === 'number' ? itemData['Benchmark'].toFixed(4) : 'N/A'}
-                                  </td>
-                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
-                                    {typeof itemData['After Shock'] === 'number' ? itemData['After Shock'].toFixed(4) : 'N/A'}
-                                  </td>
-                                  <td className="px-3 py-2 border-r border-gray-300 text-right">
-                                    {(() => {
-                                      const benchmark = itemData['Benchmark'];
-                                      const afterShock = itemData['After Shock'];
-                                      const changePercent = itemData['Change (%)'];
-                                      
-                                      if (typeof changePercent === 'number' && !isNaN(changePercent)) {
-                                        return (changePercent * 100).toFixed(2) + '%';
-                                      }
-                                      
-                                      // Calculate manually if change percent is missing but we have benchmark and after shock
-                                      if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
-                                        const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
-                                        return calculatedChange.toFixed(2) + '%';
-                                      }
-                                      
-                                      // If benchmark and after shock are the same, it's 0% change
-                                      if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
-                                        return '0.00%';
-                                      }
-                                      
-                                      return 'N/A';
-                                    })()}
-                                  </td>
-                                  {state.results.comparisonMode && state.results.scenario1 && (
-                                    <td className="px-3 py-2 bg-cyan-50 text-right">
-                                      {scenario1Data && typeof scenario1Data['After Shock'] === 'number' 
-                                        ? scenario1Data['After Shock'].toFixed(4) 
-                                        : 'N/A'
-                                      }
-                                    </td>
-                                  )}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                          <h4 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                            Household Analytics
+                          </h4>
+                          <p className="text-xs text-gray-500">Income and labor supply by household</p>
                       </div>
                     </div>
-                  ))}
+                      <button
+                        className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-colors duration-300 text-sm font-medium border border-emerald-200"
+                        onClick={() => setShowSectorHousehold((v) => !v)}
+                      >
+                        {showSectorHousehold ? '🙈 Hide' : '👁️ Show'}
+                      </button>
+                    </div>
+                    {showSectorHousehold && (
+                      <HouseholdAnalyticsMatrix 
+                        householdData={state.results.professional_reports.sector_household}
+                        comparisonMode={state.results.comparisonMode}
+                        scenario1={state.results.scenario1}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Sector Analytics - Independent Section */}
+              {state.results.professional_reports.sector_household && (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 rounded-2xl opacity-8"></div>
+                  <div className="relative bg-white/75 backdrop-blur-sm border border-white/40 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 flex items-center justify-center shadow-lg">
+                          <span className="text-white text-lg">🏭</span>
+                        </div>
+                        <div>
+                          <h4 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+                            Sector Analytics
+                          </h4>
+                          <p className="text-xs text-gray-500">Economic indicators by sector</p>
+                        </div>
+                      </div>
+                      <button
+                        className="px-4 py-2 bg-orange-100 text-orange-700 rounded-xl hover:bg-orange-200 transition-colors duration-300 text-sm font-medium border border-orange-200"
+                        onClick={() => setShowSectorHousehold((v) => !v)}
+                      >
+                        {showSectorHousehold ? '🙈 Hide' : '👁️ Show'}
+                      </button>
+                    </div>
+                    {showSectorHousehold && (
+                      <SectorAnalyticsMatrix 
+                        sectorData={state.results.professional_reports.sector_household}
+                        comparisonMode={state.results.comparisonMode}
+                        scenario1={state.results.scenario1}
+                      />
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Demand Matrix Report */}
               {state.results.professional_reports.demand_matrix && (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-400 via-blue-400 to-slate-500 rounded-2xl opacity-8"></div>
+                  <div className="relative bg-white/75 backdrop-blur-sm border border-white/40 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-slate-500 to-blue-600 flex items-center justify-center shadow-lg">
+                          <span className="text-white text-lg">📊</span>
+                        </div>
                 <div>
-                  <h4 className="text-lg font-medium mb-4 text-purple-600">Demand Matrix Report</h4>
+                          <h4 className="text-xl font-bold bg-gradient-to-r from-slate-600 to-blue-600 bg-clip-text text-transparent">
+                            Demand Matrix Report
+                          </h4>
+                          <p className="text-xs text-gray-500">Consumer-sector demand relationships</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors duration-300 text-sm font-medium border border-slate-200"
+                          onClick={() => setDemandMatrixMode((m) => (m === 'table' ? 'matrix' : 'table'))}
+                          title="Switch between table and matrix cards view"
+                        >
+                          {demandMatrixMode === 'table' ? '🔲 Matrix' : '📊 Table'}
+                        </button>
+                        <button
+                          className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors duration-300 text-sm font-medium border border-slate-200"
+                          onClick={() => setShowDemandMatrix((v) => !v)}
+                        >
+                          {showDemandMatrix ? '🙈 Hide' : '👁️ Show'}
+                        </button>
+                      </div>
+                    </div>
+                  {showDemandMatrix && (
+                    <>
                   {Object.entries(state.results.professional_reports.demand_matrix).map(([category, categoryData]: [string, any]) => (
                     <div key={category} className="mb-6">
                       <h5 className="text-md font-medium mb-3 text-gray-700">{category}</h5>
+                      {demandMatrixMode === 'table' ? (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border border-gray-300 rounded-lg">
                           <thead className="bg-gray-50">
@@ -1966,31 +2270,15 @@ const ModelStudioPage = () => {
                                         const benchmark = sectorData['Benchmark'];
                                         const afterShock = sectorData['After Shock'];
                                         const changePercent = sectorData['Change (%)'];
-                                        
-                                        if (typeof changePercent === 'number' && !isNaN(changePercent)) {
-                                          return (changePercent * 100).toFixed(2) + '%';
-                                        }
-                                        
-                                        // Calculate manually if change percent is missing but we have benchmark and after shock
-                                        if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) {
-                                          const calculatedChange = ((afterShock - benchmark) / benchmark) * 100;
-                                          return calculatedChange.toFixed(2) + '%';
-                                        }
-                                        
-                                        // If benchmark and after shock are the same, it's 0% change
-                                        if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) {
-                                          return '0.00%';
-                                        }
-                                        
+                                          if (typeof changePercent === 'number' && !isNaN(changePercent)) return (changePercent * 100).toFixed(2) + '%';
+                                          if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark !== 0) return (((afterShock - benchmark) / benchmark) * 100).toFixed(2) + '%';
+                                          if (typeof benchmark === 'number' && typeof afterShock === 'number' && benchmark === afterShock) return '0.00%';
                                         return 'N/A';
                                       })()}
                                     </td>
                                     {state.results.comparisonMode && state.results.scenario1 && (
                                       <td className="px-3 py-2 bg-cyan-50 text-right">
-                                        {scenario1Data && typeof scenario1Data['After Shock'] === 'number' 
-                                          ? scenario1Data['After Shock'].toFixed(4) 
-                                          : 'N/A'
-                                        }
+                                          {scenario1Data && typeof scenario1Data['After Shock'] === 'number' ? scenario1Data['After Shock'].toFixed(4) : 'N/A'}
                                       </td>
                                     )}
                                   </tr>
@@ -1999,9 +2287,140 @@ const ModelStudioPage = () => {
                             )}
                           </tbody>
                         </table>
+                        </div>
+                      ) : (
+                        // Matrix KPI Cards view
+                        <div className="overflow-x-auto">
+                          {(() => {
+                            const consumers = Object.keys(categoryData || {});
+                            const allSectorsSet: Record<string, boolean> = {};
+                            consumers.forEach((c) => {
+                              Object.keys((categoryData as any)[c] || {}).forEach((s) => (allSectorsSet[s] = true));
+                            });
+                            const sectors = Object.keys(allSectorsSet);
+                            const header = (
+                              <div className="grid sticky top-0 z-10 bg-gradient-to-r from-slate-50 to-blue-50 backdrop-blur-sm rounded-t-xl border-b border-slate-200" style={{ gridTemplateColumns: `200px repeat(${sectors.length}, minmax(160px, 1fr))` }}>
+                                <div className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-widest">Consumer / Sector</div>
+                                {sectors.map((s, idx) => (
+                                  <div key={s} className="px-2 py-3 text-xs uppercase tracking-widest text-slate-600 font-bold text-center">
+                                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r ${
+                                      idx % 2 === 0 ? 'from-slate-100 to-blue-100' : 'from-blue-100 to-slate-100'
+                                    } border border-slate-200`}>
+                                      <span>🏭</span>
+                                      {s}
                       </div>
                     </div>
                   ))}
+                              </div>
+                            );
+                            const rows = consumers.map((consumer, consumerIdx) => (
+                              <div key={consumer} className="grid items-stretch hover:bg-slate-50/30 transition-colors duration-200" style={{ gridTemplateColumns: `200px repeat(${sectors.length}, minmax(160px, 1fr))` }}>
+                                <div className="pr-3 py-4 flex items-center">
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-slate-100 to-blue-100 border border-slate-200 rounded-xl">
+                                    <div className="w-6 h-6 rounded-full bg-gradient-to-r from-slate-500 to-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                                      {consumerIdx + 1}
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-700">{consumer}</span>
+                                  </div>
+                                </div>
+                                {sectors.map((sector) => {
+                                  const cell: any = (categoryData as any)?.[consumer]?.[sector] || {};
+                                  const bench = cell['Benchmark'];
+                                  const after = cell['After Shock'];
+                                  const pct = (() => {
+                                    const changePercent = cell['Change (%)'];
+                                    if (typeof changePercent === 'number' && !isNaN(changePercent)) return changePercent * 100;
+                                    if (typeof bench === 'number' && typeof after === 'number' && bench !== 0) return ((after - bench) / bench) * 100;
+                                    return 0;
+                                  })();
+                                  const scenarioCell: any = state.results.comparisonMode && state.results.scenario1?.professional_reports?.demand_matrix?.[category]?.[consumer]?.[sector];
+                                  const scenarioAfter = typeof scenarioCell?.['After Shock'] === 'number' ? scenarioCell['After Shock'] : null;
+                                  return (
+                                    <div key={`${consumer}-${sector}`} className="group m-1 relative">
+                                      {/* Gradient glow */}
+                                      <div className={`absolute -inset-0.5 rounded-xl opacity-20 group-hover:opacity-40 transition-all duration-300 ${
+                                        pct >= 0 
+                                          ? 'bg-gradient-to-r from-emerald-400 to-teal-500' 
+                                          : 'bg-gradient-to-r from-red-400 to-pink-500'
+                                      }`}></div>
+                                      
+                                      {/* Main card */}
+                                      <div className="relative bg-white/90 backdrop-blur-sm border border-white/50 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                                        {/* Header with direction indicator */}
+                                        <div className="flex items-center justify-end mb-3">
+                                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs ${
+                                            pct >= 0 ? 'bg-gradient-to-r from-emerald-400 to-green-500' : 'bg-gradient-to-r from-red-400 to-red-500'
+                                          }`}>
+                                            {pct >= 0 ? '↗' : '↘'}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Main value */}
+                                        <div className="mb-2">
+                                          <div className="text-lg font-bold text-gray-800">
+                                            {typeof after === 'number' ? after.toFixed(4) : 'N/A'}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Change badge */}
+                                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold mb-2 ${
+                                          pct >= 0 
+                                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
+                                            : 'bg-red-100 text-red-700 border border-red-200'
+                                        }`}>
+                                          {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                                        </div>
+                                        
+                                        {/* Benchmark */}
+                                        <div className="text-[10px] text-gray-500 mb-1">
+                                          Base: {typeof bench === 'number' ? bench.toFixed(4) : 'N/A'}
+                                        </div>
+                                        
+                                        {/* Scenario comparison */}
+                                        {scenarioAfter !== null && (
+                                          <div className="text-[10px] text-blue-600 font-medium">
+                                            📊 {scenarioAfter.toFixed(4)}
+                                          </div>
+                                        )}
+                                        
+                                        {/* Percentage change indicator */}
+                                        <div className="mt-3">
+                                          <div className="w-full bg-gray-200 rounded-full h-1">
+                                            <div 
+                                              className={`h-1 rounded-full transition-all duration-1000 ${
+                                                pct >= 0 
+                                                  ? 'bg-gradient-to-r from-emerald-400 to-green-500' 
+                                                  : 'bg-gradient-to-r from-red-400 to-red-500'
+                                              }`}
+                                              style={{ width: `${Math.min(Math.abs(pct), 100)}%` }}
+                                            ></div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ));
+                            return (
+                              <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-blue-200 to-slate-300 rounded-2xl opacity-20"></div>
+                                <div className="relative bg-white/60 backdrop-blur-sm border border-white/40 rounded-2xl shadow-2xl overflow-hidden">
+                                  {header}
+                                  <div className="divide-y divide-slate-100">
+                                    {rows}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                    </>
+                  )}
+                  </div>
                 </div>
               )}
 

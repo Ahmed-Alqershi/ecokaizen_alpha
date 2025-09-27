@@ -762,21 +762,8 @@ def main():
         for i, household in enumerate(households):
             sam_data[sectors_count + factors_count + i][sectors_count] = 10.0 + i  # Households to LAB
         
-        print("Test SAM generated successfully!")
-        sam_data = [
-            [0, 0, 0, 0, 5.163977795, 2.581988898],
-            [0, 0, 0, 0, 5.163977795, 7.745966694],
-            [3.872983346, 6.454972244, 0, 0, 0, 0],
-            [3.872983346, 6.454972241, 0, 0, 0, 0],
-            [0, 0, 2.581988898, 7.74596669, 0, 0],
-            [0, 0, 7.745966693, 2.581988897, 0, 0],
-        ]
-
-
-        print(sam_data)
         
         # Solve the model
-        print("\nSolving MN1 model...")
         results = solve_mn1_core(
             sectors=sectors,
             factors=factors,
@@ -792,13 +779,7 @@ def main():
             auto_calibrate=auto_calibrate
         )
         
-        print("\n🎉 Model solved successfully!")
-        print("\nResults:")
-        print(f"Production: {results['production']}")
-        print(f"Prices: {results['prices']}")
-        print(f"Wage: {results['wage']}")
-        print(f"Household incomes: {results['benchmark_vs_solution']}")
-        
+       
     except ValueError as e:
         print(f"❌ Input error: {e}")
         sys.exit(1)

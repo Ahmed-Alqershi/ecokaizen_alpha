@@ -8,27 +8,14 @@ const api = axios.create({
   },
 });
 
-// Add a request interceptor for debugging
+// Production: no debug interceptors
 api.interceptors.request.use(
-  (config) => {
-    console.log('API Request:', config.url, config.data);
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (config) => config,
+  (error) => Promise.reject(error)
 );
-
-// Add a response interceptor for debugging
 api.interceptors.response.use(
-  (response) => {
-    console.log('API Response:', response.config.url, response.data);
-    return response;
-  },
-  (error) => {
-    console.error('API Error:', error.config?.url, error.response?.data || error.message);
-    return Promise.reject(error);
-  }
+  (response) => response,
+  (error) => Promise.reject(error)
 );
 
 export const solveModel = async (
@@ -96,13 +83,11 @@ export const generateRandomSam = async (
     // Verify we got a valid SAM structure back
     const data = response.data;
     if (!data.entries || !data.goods || !data.factors || !data.households || !data.data) {
-      console.error('Invalid SAM data received:', data);
       throw new Error('Received invalid SAM data from server');
     }
     
     return data;
   } catch (error) {
-    console.error('Error in generateRandomSam:', error);
     if (axios.isAxiosError(error) && error.response) {
       throw error.response.data;
     }

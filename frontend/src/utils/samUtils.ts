@@ -12,7 +12,6 @@ export const parseSamFromCsv = (csvContent: string): ParsedSam | null => {
   try {
     const result = Papa.parse<string[]>(csvContent.trim());
     if (result.errors.length > 0) {
-      console.error('CSV parsing errors:', result.errors);
       return null;
     }
 
@@ -41,7 +40,6 @@ export const parseSamFromCsv = (csvContent: string): ParsedSam | null => {
 
     return { columnNames, rowNames, data: numericData };
   } catch (error) {
-    console.error('Error parsing CSV:', error);
     return null;
   }
 };
@@ -54,7 +52,6 @@ export const parseSamFromExcel = async (file: File): Promise<ParsedSam | null> =
     
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) {
-      console.error('No worksheet found in Excel file');
       return null;
     }
     
@@ -109,47 +106,26 @@ export const parseSamFromExcel = async (file: File): Promise<ParsedSam | null> =
       }
     });
     
-    console.log('Excel parsing result:', {
-      columnNames,
-      rowNames,
-      dataRows: numericData.length,
-      dataCols: numericData.length > 0 ? numericData[0].length : 0
-    });
     
     // Validate that we have data
     if (columnNames.length === 0 || rowNames.length === 0 || numericData.length === 0) {
-      console.error('Excel parsing failed: insufficient data extracted', {
-        columnNamesCount: columnNames.length,
-        rowNamesCount: rowNames.length,
-        dataRowsCount: numericData.length
-      });
       return null;
     }
     
     // Check that dimensions match
     if (rowNames.length !== numericData.length) {
-      console.error('Excel parsing failed: row names count does not match data rows count', {
-        rowNamesCount: rowNames.length,
-        dataRowsCount: numericData.length
-      });
       return null;
     }
     
     // Check that each data row has the right number of columns
     for (let i = 0; i < numericData.length; i++) {
       if (numericData[i].length !== columnNames.length) {
-        console.error(`Excel parsing failed: row ${i} has ${numericData[i].length} values but expected ${columnNames.length}`, {
-          rowName: rowNames[i],
-          rowData: numericData[i],
-          expectedColumns: columnNames.length
-        });
         return null;
       }
     }
     
     return { columnNames, rowNames, data: numericData };
   } catch (error) {
-    console.error('Error parsing Excel:', error);
     return null;
   }
 };
@@ -170,7 +146,7 @@ export const generateDefaultSam = (): SAM => {
     [0, 0, 25, 25, 0]   // HOH row
   ];
 
-  console.log('Generated default SAM:', { entries, goods, factors, households, data });
+  // Generated default SAM
 
   return {
     entries,
@@ -216,15 +192,7 @@ export const generateEmptySam = (
     data.push(row);
   }
 
-  console.log('Generated empty SAM template:', {
-    entries,
-    goods,
-    factors,
-    households,
-    dimensions: `${totalEntries}x${totalEntries}`,
-    dataRows: data.length,
-    dataCols: data.length > 0 ? data[0].length : 0
-  });
+  // Generated empty SAM template
 
   return {
     entries,
