@@ -17,6 +17,7 @@ interface SAMTableProps {
 const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
   const [rowData, setRowData] = useState<any[]>([]);
   const [gridApi, setGridApi] = useState<any>(null);
+  const [focusedCell, setFocusedCell] = useState<{row: number, col: string} | null>(null);
 
   // Create column definitions based on SAM entries
   const columnDefs = useMemo(() => {
@@ -41,6 +42,21 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
       cellStyle: (params: any) => {
         if (!params || !params.node) return { backgroundColor: '#f0fdf4', border: 'none', fontWeight: 'normal' };
         const rowIndex = params.node.rowIndex;
+        const colField = params.colDef.field;
+
+        // Check if this cell is currently focused
+        const isFocused = focusedCell && focusedCell.row === rowIndex && focusedCell.col === colField;
+
+        // Focused cell styling with prominent border and background
+        if (isFocused) {
+          return {
+            backgroundColor: '#eff6ff',
+            border: '2px solid #3b82f6',
+            boxShadow: '0 0 0 1px #3b82f6',
+            fontWeight: '600',
+            outline: 'none'
+          };
+        }
 
         // Highlight diagonal cells (account balances)
         if (rowIndex === index) {
@@ -74,7 +90,7 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
       },
       ...cols,
     ];
-  }, [sam.entries, readOnly]);
+  }, [sam.entries, readOnly, focusedCell]);
 
   useEffect(() => {
     if (sam && sam.data) {
@@ -123,6 +139,28 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
     params.api.sizeColumnsToFit();
   }, []);
 
+  // Handle cell focus events
+  const onCellFocused = useCallback((event: any) => {
+    if (event.rowIndex !== null && event.column && event.column.colId !== 'entryName') {
+      setFocusedCell({
+        row: event.rowIndex,
+        col: event.column.colId
+      });
+    } else {
+      setFocusedCell(null);
+    }
+  }, []);
+
+  // Handle cell click events (also sets focus)
+  const onCellClicked = useCallback((event: any) => {
+    if (event.rowIndex !== null && event.column && event.column.colId !== 'entryName') {
+      setFocusedCell({
+        row: event.rowIndex,
+        col: event.column.colId
+      });
+    }
+  }, []);
+
   return (
     <div className="w-full">
       <div className="ag-theme-alpine sam-grid-container">
@@ -132,6 +170,8 @@ const SAMTable = ({ sam, onChange, readOnly = false }: SAMTableProps) => {
           columnDefs={columnDefs}
           rowData={rowData}
           onCellValueChanged={onCellValueChanged}
+          onCellFocused={onCellFocused}
+          onCellClicked={onCellClicked}
           suppressMovableColumns={true}
           onGridReady={onGridReady}
           onGridSizeChanged={onGridSizeChanged}

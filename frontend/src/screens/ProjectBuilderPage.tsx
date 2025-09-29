@@ -1453,6 +1453,34 @@ const ModelStudioPage = () => {
               state.ui.benchmarkSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
             }`}
           >
+            {/* Warning Notice */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-400 rounded-r-lg p-4 mb-6 shadow-sm">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-amber-800 font-medium text-sm mb-1">
+                    ⚠️ Important: Benchmark Price Calibration
+                  </h4>
+                  <p className="text-amber-700 text-sm leading-relaxed">
+                    These prices are typically calibrated to <strong>1.0</strong> for normalization. 
+                    Changing these values is <strong>not recommended</strong> unless you have specific requirements. 
+                    If you need different relative prices, consider updating your <strong>SAM matrix</strong> instead 
+                    to reflect the desired economic structure.
+                  </p>
+                  <div className="mt-2 flex items-center space-x-1 text-xs text-amber-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Default values (1.0) ensure proper model calibration</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          
           <div>
             <label className="block mb-2 font-medium">Price of goods (PO)</label>
             <table className="w-full text-left">
@@ -1539,35 +1567,88 @@ const ModelStudioPage = () => {
               state.ui.calibrationSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
             }`}
           >
-          <div>
-            <label className="block mb-2 font-medium">Calibration Mode:</label>
-            <div className="flex gap-4">
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  checked={state.parameters.calibrationMode === 'auto'}
-                  onChange={() => dispatch({ 
-                    type: 'SET_PARAMETERS', 
-                    payload: { calibrationMode: 'auto' } 
-                  })}
-                  className="mr-2"
-                />
-                <span>Auto-calibrate (recommended)</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  checked={state.parameters.calibrationMode === 'manual'}
-                  onChange={() => dispatch({ 
-                    type: 'SET_PARAMETERS', 
-                    payload: { calibrationMode: 'manual' } 
-                  })}
-                  className="mr-2"
-                />
-                <span>Manual input</span>
-              </label>
+            <div>
+              <label className="block mb-4 font-medium text-gray-800">Calibration Mode:</label>
+              
+              {/* Modern Radio Button Options */}
+              <div className="space-y-3 mb-6">
+                <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
+                    state.parameters.calibrationMode === 'auto' 
+                      ? 'border-blue-300 bg-blue-50 shadow-md' 
+                      : 'border-gray-200 bg-white'
+                  }`}>
+                  <input
+                    type="radio"
+                    checked={state.parameters.calibrationMode === 'auto'}
+                    onChange={() => dispatch({ 
+                      type: 'SET_PARAMETERS', 
+                      payload: { calibrationMode: 'auto' } 
+                    })}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <div className="ml-3">
+                    <span className="font-medium text-gray-900">Auto-calibrate</span>
+                    <span className="ml-2 text-sm italic text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200 shadow-sm">
+                      ✨ recommended
+                    </span>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Automatically calibrates parameters from SAM data using established econometric methods
+                    </p>
+                  </div>
+                </label>
+                
+                <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
+                    state.parameters.calibrationMode === 'manual' 
+                      ? 'border-blue-300 bg-blue-50 shadow-md' 
+                      : 'border-gray-200 bg-white'
+                  }`}>
+                  <input
+                    type="radio"
+                    checked={state.parameters.calibrationMode === 'manual'}
+                    onChange={() => dispatch({ 
+                      type: 'SET_PARAMETERS', 
+                      payload: { calibrationMode: 'manual' } 
+                    })}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <div className="ml-3">
+                    <span className="font-medium text-gray-900">Manual input</span>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Manually specify calibration parameters based on your research
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Warning Notice for Manual Mode */}
+              {state.parameters.calibrationMode === 'manual' && (
+                <div className="bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-400 rounded-r-lg p-4 mb-6 shadow-sm">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <svg className="w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-red-800 font-medium text-sm mb-1">
+                        🔬 Advanced Users Only: Manual Calibration
+                      </h4>
+                      <p className="text-red-700 text-sm leading-relaxed">
+                        Manual calibration should <strong>only be used after deep econometric analysis</strong> and 
+                        thorough understanding of your model's parameters. Incorrect values can lead to 
+                        unrealistic or unstable model behavior.
+                      </p>
+                      <div className="mt-2 flex items-center space-x-1 text-xs text-red-600">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <span>Ensure parameters are econometrically validated before use</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
           {state.parameters.calibrationMode === 'manual' && (
             <div className="space-y-6">
               <div>

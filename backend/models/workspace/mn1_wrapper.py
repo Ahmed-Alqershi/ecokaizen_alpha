@@ -93,3 +93,4 @@ def solve_mn1(params: Dict[str, Any], sam: Dict[str, Any]) -> Dict[str, Any]:
         print(f"Error solving MN1 model: {str(e)}")
         raise ValueError(f"Failed to solve MN1 model: {str(e)}")
 
+

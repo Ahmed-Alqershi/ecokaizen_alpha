@@ -207,10 +207,6 @@ def dynamic_solve(sectors, factors, households, sam_data, alpha_input, b_input):
         # Solve the model
         model.solve()
 
-        # # Check if model solved successfully
-        # if model.status != 1:  # 1 = OPTIMAL
-        #     raise ValueError(f"Model failed to solve optimally. Status: {model.status}")
-
         return container
     except Exception as e:
         print(f"Error solving dynamic model: {str(e)}")
@@ -305,3 +301,4 @@ if __name__ == "__main__":
     results = extract_results(container)
     
     print("Results:", results)
+

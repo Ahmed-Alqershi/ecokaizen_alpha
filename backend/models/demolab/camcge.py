@@ -5,9 +5,9 @@ from gamspy import Container, Set, Alias, Parameter, Variable, Equation, Model, 
 from gamspy.math import sign
 
 # Resolve the path to the Excel data file regardless of the current
-# working directory.  This ensures the model can be executed from the
-# project root or the backend folder without errors.
-DATA_PATH = os.path.join(os.path.dirname(__file__), "camcge_data.xlsx")
+# working directory. Prefer a local data/ folder; fallback to parent folder.
+_HERE = os.path.dirname(__file__)
+DATA_PATH = os.path.join(_HERE, "data", "camcge_data.xlsx")
 
 
 class data:
@@ -161,13 +161,14 @@ at[it] = xd0[it]/(gamma[it]*e0[it]**rhot[it] + (1 - gamma[it]) * xxd0[it]**rhot[
 pd1 = Variable(m, name="pd1", domain=i, description="domestic prices                                            (unity)")
 pm  = Variable(m, name="pm",  domain=i, description="domestic price of imports                                  (unity)")
 pe  = Variable(m, name="pe",  domain=i, description="domestic price of exports                                  (unity)")
-pk  = Variable(m, name="pk",  domain=i, description="rate of capital rent by sector                             (unity)")
+pk  = Variable(m, name="pk",  domain=i, description="rate of capital goods price                   (unity)")
 px  = Variable(m, name="px",  domain=i, description="average output price by sector                             (unity)")
 p   = Variable(m, name="p",   domain=i, description="price of composite goods                                   (unity)")
 pva = Variable(m, name="pva", domain=i, description="value added price by sector                                (unity)")
 pwm = Variable(m, name="pwm", domain=i, description="world market price of imports                              (unity)")
 pwe = Variable(m, name="pwe", domain=i, description="world market price of exports                              (unity)")
 tm  = Variable(m, name="tm",  domain=i, description="tariff rates                                               (unity)")
+
 #  tm(it)   ''# tariff rates for traded sectors
 
 # production block
@@ -283,7 +284,7 @@ absorption[i] =   p[i]*x[i]   == pd1[i]*xxd[i] + (pm[i]*m1[i]).where[it[i]]
 
 sales[i] =        px[i]*xd[i] == pd1[i]*xxd[i] + (pe[i]*e[i]).where[it[i]]
 
-actp[i] =         px[i]*(1-itax[i]) == pva[i] + Sum(j, io[j,i]*p[j])
+actp[i] =         px[i]*(1-itax[i]) == pva[i] + Sum(j, io[j,i] * p[j])
 
 pkdef[i] =        pk[i] == Sum(j, p[j]*imat[j,i])
 
@@ -329,7 +330,7 @@ tariffdef[...]   =         tariff      == Sum(it, tm[it]*m1[it]*pwm[it])*er
 
 indtaxdef[...]   =         indtax      == Sum(i, itax[i]*px[i]*xd[i])
 
-dutydef[...]     =         duty        == Sum(it, te[it]*e[it]*pe[it])
+dutydef[...]     =         duty        == Sum(it, te[it]*e[it]*pwe[it])
 
 depreq[...]      =         deprecia    == Sum(i, depr[i]*pk[i]*k[i])
 
@@ -398,5 +399,6 @@ equations.remove(caeq)
 camcge = Model(m, name="camcge", problem="NLP", equations=equations, sense="MAX", objective=omega)  # square base model / all - caeq /
 
 camcge.solve(solver="CONOPT")
+
 
 

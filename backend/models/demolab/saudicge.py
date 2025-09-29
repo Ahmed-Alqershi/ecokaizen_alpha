@@ -4,9 +4,9 @@ import pandas as pd
 from gamspy import Container, Set, Alias, Parameter, Variable, Equation, Model, Sum, Product, Number
 from gamspy.math import sign
 
-# Path to the Excel data used by the model.  Using an absolute path makes the
-# module independent of the current working directory.
-DATA_PATH = os.path.join(os.path.dirname(__file__), "korcge_export.xlsx")
+# Prefer a local data file; fallback to parent directory copy
+_HERE = os.path.dirname(__file__)
+DATA_PATH = os.path.join(_HERE, "data", "saudicge_export.xlsx")
 
 
 class data:
@@ -319,9 +319,9 @@ cdeq[i] =         p[i]*cd[i]    == Sum(hh, cles[i,hh]*(1 - mps[hh])*yh[hh]*(1 - 
 
 gdp[...]  =             y             == Sum(hh, yh[hh])
 
-labory[...]  =          yh["lab-hh"]  == Sum(lc, wa[lc]*ls[lc]) + remit*er
+labory[...]  =          yh["saudi-hh"]  == Sum(lc, wa[lc]*ls[lc]) + remit*er
 
-capitaly[...]  =        yh["cap-hh"]  == Sum(i, pva[i]*xd[i]) - deprecia  -  Sum(lc, wa[lc]*ls[lc]) + fbor*er + ypr
+capitaly[...]  =        yh["expat-hh"]  == Sum(i, pva[i]*xd[i]) - deprecia  -  Sum(lc, wa[lc]*ls[lc]) + fbor*er + ypr
 
 hhsaveq[...]  =         hhsav         == Sum(hh, mps[hh]*yh[hh]*(1 - htax[hh]))
 
@@ -356,7 +356,7 @@ caeq[...]  =            Sum(it, pwm[it]*m1[it]) == Sum(it, pwe[it]*e[it])  +  fs
 equil[i] =        x[i]  == int1[i] + cd[i] + gd[i] + id[i] + dst[i]
 
 # objective function
-obj[...]  =             omega == Product(i.where[cles[i,"lab-hh"]], cd[i]**cles[i,"lab-hh"])
+obj[...]  =             omega == Product(i.where[cles[i,"saudi-hh"]], cd[i]**cles[i,"saudi-hh"])
 
 
 er.fx[...]      = er.l
@@ -373,4 +373,6 @@ model1 = Model(m, name="model1", problem="NLP", equations=m.getEquations(), sens
 
 
 model1.solve(solver="CONOPT")
+
+
 
