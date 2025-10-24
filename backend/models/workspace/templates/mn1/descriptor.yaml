@@ -1,0 +1,53 @@
+id: mn1
+name: MN1 CGE Model
+version: 0.1.0
+description: Simple static CGE with labor factor and profits distribution
+tags: [static, mn1]
+
+dimensions:
+  minSectors: 1
+  maxSectors: 20
+  minHouseholds: 1
+  maxHouseholds: 20
+  factors: [LAB, CAP]
+
+samLayout:
+  order:
+    - SECTORS*
+    - LAB
+    - CAP
+    - HOUSEHOLDS*
+
+inputs:
+  autoCalibrate: { type: "boolean", default: true }
+  prices: { type: "number[]", per: sector, default: 1.0 }
+  wage: { type: "number", default: 1.0 }
+  alpha: { type: "number[]", per: sector, default: "1.0/numSectors" }
+  beta: { type: "number[][]", per: household-sector, optional: true }
+  A: { type: "number[]", per: sector, default: 1.0, optional: true }
+  b: { type: "number[]", per: sector, default: 1.0, note: alias_of_A }
+
+closures:
+  defaults: []
+  allowed: ["P[*]", "W", "XD[*]", "XS[*]", "LD[*]", "LS[*]"]
+
+shocks:
+  allowed: ["A[j]", "BETA[h,j]", "ALPHA[j]", "W", "P[j]"]
+  semantics: multiplier
+
+solver:
+  engine: gamspy
+  nlp: CONOPT
+  iterLimit: 10000
+  timeLimit: 10000
+
+outputs:
+  prices: { per: sector }
+  production: { per: sector }
+  wage: { type: number }
+  householdIncomes: { per: household }
+
+uiHints:
+  preferredCharts: [prices, production]
+  numberFormat: "0.00"
+

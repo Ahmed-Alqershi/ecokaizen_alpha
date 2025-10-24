@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { useReducer, useEffect, useCallback, useState, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
 import SAMTable from '../components/SAMTable';
@@ -12,12 +12,14 @@ import { solveModel } from '../utils/api';
 import ExcelJS from 'exceljs';
 
 const FACTOR_NAMES = ['LAB', 'CAP'];
+const OPEN_ECONOMY_TAIL_ACCOUNTS = ['FIRMS', 'DIRECT_TX', 'INDIR_TX', 'IMP_TX', 'GOVMT', 'ROW', 'ACCUM'];
 
 // State interface for better type safety
 interface ModelStudioState {
   // Project information
   project: {
     name: string;
+    templateId?: string; // Track which template this project uses
   };
   
   // Model dimensions
@@ -99,7 +101,7 @@ interface ModelStudioState {
 
 // Action types for reducer
 type ModelStudioAction =
-  | { type: 'SET_PROJECT'; payload: { name?: string } }
+  | { type: 'SET_PROJECT'; payload: { name?: string; templateId?: string } }
   | { type: 'SET_DIMENSIONS'; payload: { industries?: number; consumers?: number } }
   | { type: 'SET_NAMES'; payload: { goods?: string[]; consumers?: string[]; useSamNames?: boolean } }
   | { type: 'SET_PARAMETERS'; payload: Partial<ModelStudioState['parameters']> }
@@ -134,8 +136,10 @@ const adjustNumericArray = (arr: number[], len: number, defaultValue: number): n
   return copy;
 };
 
-  const createEmptySam = (goods: string[], factors: string[], households: string[]): SAM => {
-    const entries = [...goods, ...factors, ...households];
+  const createEmptySam = (goods: string[], factors: string[], households: string[], templateId?: string): SAM => {
+    // Add tail accounts for open economy template
+    const tailAccounts = templateId === 'open_economy_static' ? OPEN_ECONOMY_TAIL_ACCOUNTS : [];
+    const entries = [...goods, ...factors, ...households, ...tailAccounts];
     const size = entries.length;
     return {
       entries,
@@ -172,7 +176,7 @@ const getInitialState = (): ModelStudioState => ({
     closureRules: [],
     shocks: [],
   },
-  sam: createEmptySam(['IND1', 'IND2'], FACTOR_NAMES, ['HH1']),
+  sam: createEmptySam(['IND1', 'IND2'], FACTOR_NAMES, ['HH1'], undefined),
   ui: {
     samSectionOpen: true,
     benchmarkSectionOpen: true,
@@ -232,7 +236,7 @@ const modelStudioReducer = (state: ModelStudioState, action: ModelStudioAction):
           techParams: newTechParams,
           betaMatrix: newBetaMatrix,
         },
-        sam: createEmptySam(newGoodsNames, FACTOR_NAMES, newConsumerNames),
+        sam: createEmptySam(newGoodsNames, FACTOR_NAMES, newConsumerNames, state.project.templateId),
       };
     }
     
@@ -320,20 +324,30 @@ const modelStudioReducer = (state: ModelStudioState, action: ModelStudioAction):
 
 const ModelStudioPage = () => {
   const { projectName } = useParams<{ projectName: string }>();
+  const location = useLocation();
   const [state, dispatch] = useReducer(modelStudioReducer, getInitialState());
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
 
   // Load project data on mount
   useEffect(() => {
+    console.log('🚀 [ProjectBuilder] Component mounted, location.state:', location.state);
     if (!projectName) return;
     const decodedName = decodeURIComponent(projectName);
     
     const loadProjectData = () => {
       try {
+        // First, check if templateId is passed via navigation state (new project)
+        const navState: any = location.state;
+        let templateIdFromNav = navState?.templateId;
+        
+        console.log('[ProjectBuilder] Loading project:', decodedName, 'templateId from nav:', templateIdFromNav);
+        
         const savedData = localStorage.getItem(`model-studio-${decodedName}`);
         if (savedData) {
           const parsedData = JSON.parse(savedData);
+          console.log('[ProjectBuilder] Found saved data, templateId:', parsedData.project?.templateId);
+          
           // Restore state from saved data
           Object.keys(parsedData).forEach(key => {
             if (key === 'project') {
@@ -370,16 +384,24 @@ const ModelStudioPage = () => {
             localStorage.setItem('workspace-projects', JSON.stringify(existingProjects));
           }
         } else {
-          // If no saved data, set project name from URL
-          dispatch({ type: 'SET_PROJECT', payload: { name: decodedName } });
+          // If no saved data, set project name from URL and templateId from navigation state
+          console.log('[ProjectBuilder] No saved data, creating new project with templateId:', templateIdFromNav);
+          dispatch({ type: 'SET_PROJECT', payload: { name: decodedName, templateId: templateIdFromNav } });
+        }
+        
+        // If templateId was passed via navigation but not in saved data, update it
+        if (templateIdFromNav && (!savedData || !JSON.parse(savedData).project?.templateId)) {
+          console.log('[ProjectBuilder] Setting templateId from navigation:', templateIdFromNav);
+          dispatch({ type: 'SET_PROJECT', payload: { templateId: templateIdFromNav } });
         }
       } catch (error) {
+        console.error('[ProjectBuilder] Error loading project data:', error);
         setSaveStatus('error');
       }
     };
     
     loadProjectData();
-  }, [projectName]);
+  }, [projectName, location.state]);
 
   // Save project data function
   const saveProjectData = useCallback(async () => {
@@ -485,9 +507,9 @@ const ModelStudioPage = () => {
     }
   }, [state.sam, state.dimensions]);
 
-  // Update SAM when names change
+  // Update SAM when names change OR template changes
   useEffect(() => {
-    const newSam = createEmptySam(state.names.goods, FACTOR_NAMES, state.names.consumers);
+    const newSam = createEmptySam(state.names.goods, FACTOR_NAMES, state.names.consumers, state.project.templateId);
     // Preserve existing data if dimensions match
     if (state.sam.data.length === newSam.data.length) {
       newSam.data = state.sam.data.map((row, i) =>
@@ -495,7 +517,7 @@ const ModelStudioPage = () => {
       );
     }
     dispatch({ type: 'SET_SAM', payload: newSam });
-  }, [state.names.goods, state.names.consumers]);
+  }, [state.names.goods, state.names.consumers, state.project.templateId]);
 
   // Event handlers
   const handleDimensionChange = useCallback((type: 'industries' | 'consumers', value: number) => {
@@ -682,9 +704,31 @@ const ModelStudioPage = () => {
     dispatch({ type: 'SET_UI_STATE', payload: { solving: true, solveError: undefined } });
     dispatch({ type: 'SET_RESULTS', payload: { report: null } });
     
-    const params: ModelParameters = {
-      alpha: state.parameters.alphaParams, // Required field for ModelParameters interface
-      b: state.parameters.techParams, // Required field for ModelParameters interface  
+    // Use the template ID from the project, fallback to 'mn1' for backward compatibility
+    const templateId = state.project.templateId || 'mn1';
+    console.log('[ProjectBuilder] Solving with template:', templateId);
+    
+    // Build parameters based on template
+    let params: ModelParameters;
+    
+    if (templateId === 'open_economy_static') {
+      // Open economy model parameters
+      params = {
+        nSectors: state.dimensions.industries,
+        nHouseholds: state.dimensions.consumers,
+        // Use default elasticities for now (can be made configurable later)
+        SIGP: 2.0,
+        SIGC: 1.5,
+        SIGM: 2.0,
+        SIGX: 2.0,
+        closureRules: state.constraints.closureRules,
+        shocks: state.constraints.shocks,
+      } as any;
+    } else {
+      // MN1 model parameters
+      params = {
+        alpha: state.parameters.alphaParams,
+        b: state.parameters.techParams,
       prices: state.parameters.goodsPrices,
       wage: state.parameters.wageRate,
       beta: state.parameters.betaMatrix.flat(),
@@ -693,9 +737,10 @@ const ModelStudioPage = () => {
       shocks: state.constraints.shocks,
       calibration: state.parameters.calibrationMode,
     };
+    }
     
     try {
-      const res = await solveModel('mn1', params, state.sam);
+      const res = await solveModel(templateId, params, state.sam);
       
       // Check if we have professional reports (new structure)
       if (res.professional_reports) {
@@ -1223,6 +1268,26 @@ const ModelStudioPage = () => {
               state.ui.samSectionOpen ? 'max-h-[5000px] p-8' : 'max-h-0 p-0'
             }`}
           >
+          {/* Debug banner to show expected SAM structure */}
+          {state.project.templateId && state.sam.entries && state.ui.samSectionOpen && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">🔍 Debug: Expected SAM Structure</h4>
+              <div className="text-xs text-blue-800 space-y-1">
+                <div><strong>Template:</strong> {state.project.templateId}</div>
+                <div><strong>Expected Dimension:</strong> {state.sam.entries.length} × {state.sam.entries.length}</div>
+                <div><strong>Expected Entries:</strong> {state.sam.entries.join(', ')}</div>
+                <div className="mt-2 pt-2 border-t border-blue-200">
+                  <div><strong>Goods:</strong> {state.sam.goods.length} ({state.sam.goods.join(', ')})</div>
+                  <div><strong>Factors:</strong> {state.sam.factors.length} ({state.sam.factors.join(', ')})</div>
+                  <div><strong>Households:</strong> {state.sam.households.length} ({state.sam.households.join(', ')})</div>
+                  {state.project.templateId === 'open_economy_static' && (
+                    <div><strong>Fixed Tail:</strong> 7 (FIRMS, DIRECT_TX, INDIR_TX, IMP_TX, GOVMT, ROW, ACCUM)</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Dimension Configuration */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1258,6 +1323,7 @@ const ModelStudioPage = () => {
               goods={state.names.goods}
               factors={FACTOR_NAMES}
               households={state.names.consumers}
+              expectedEntries={state.sam.entries}
               autoPopulateNames={state.names.useSamNames}
               onNamesLoaded={(goods, _factors, households) => {
                 dispatch({ type: 'SET_NAMES', payload: { goods, consumers: households } });
@@ -1429,7 +1495,8 @@ const ModelStudioPage = () => {
         </div>
       </section>
 
-        {/* Benchmark Prices Section */}
+        {/* Benchmark Prices Section - Only for MN1 */}
+        {state.project.templateId !== 'open_economy_static' && (
         <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>
           <div
             className="flex items-center mb-6 cursor-pointer group"
@@ -1542,8 +1609,10 @@ const ModelStudioPage = () => {
           </div>
         </div>
       </section>
+        )}
 
-        {/* Calibration Section */}
+        {/* Calibration Section - Only for MN1 */}
+        {state.project.templateId !== 'open_economy_static' && (
         <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>
           <div
             className="flex items-center mb-6 cursor-pointer group"
@@ -1749,6 +1818,7 @@ const ModelStudioPage = () => {
           )}
         </div>
       </section>
+        )}
 
         {/* Closure Rules Section */}
         <section className={`transition-all duration-300 ${state.ui.solving ? 'opacity-50 pointer-events-none' : ''}`}>

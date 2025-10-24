@@ -7,6 +7,7 @@ interface FileUploaderProps {
   goods: string[];
   factors: string[];
   households: string[];
+  expectedEntries?: string[]; // full ordered entries for the current template, if provided
   /**
    * When true, use the uploaded SAM's header names to populate sector,
    * factor and household names instead of validating against the
@@ -32,6 +33,7 @@ const FileUploader = ({
   goods,
   factors,
   households,
+  expectedEntries,
   autoPopulateNames = false,
   onNamesLoaded,
   onFileUploaded,
@@ -73,7 +75,7 @@ const FileUploader = ({
           if (parsed) {
             // Create SAM object and load it
             const sam: SAM = {
-              entries: [...goods, ...factors, ...households],
+              entries: expectedEntries ? expectedEntries : [...goods, ...factors, ...households],
               goods,
               factors,
               households,
@@ -104,7 +106,7 @@ const FileUploader = ({
   // Remove uploaded file if it becomes invalid due to dimension changes
   useEffect(() => {
     if (uploadedFile) {
-      const expectedSize = goods.length + factors.length + households.length;
+      const expectedSize = (expectedEntries && expectedEntries.length) || (goods.length + factors.length + households.length);
       const currentDimensions = `${expectedSize}×${expectedSize}`;
       
       // If the uploaded file's dimensions no longer match expected dimensions, remove it
@@ -184,7 +186,7 @@ const FileUploader = ({
       }
 
       if (parsed) {
-        const expectedSize = goods.length + factors.length + households.length;
+        const expectedSize = (expectedEntries && expectedEntries.length) || (goods.length + factors.length + households.length);
 
         const trimmedHeader = parsed.columnNames.map(n => n.trim());
         const trimmedRows = parsed.rowNames.map(n => n.trim());
@@ -207,14 +209,15 @@ const FileUploader = ({
             setWarning(null);
           }
 
+          // Assume template ordering is goods, factors, households, then any fixed tail
           const goodsNames = trimmedHeader.slice(0, goods.length);
           const factorNames = trimmedHeader.slice(goods.length, goods.length + factors.length);
-          const householdNames = trimmedHeader.slice(goods.length + factors.length);
+          const householdNames = trimmedHeader.slice(goods.length + factors.length, goods.length + factors.length + households.length);
 
           onNamesLoaded(goodsNames, factorNames, householdNames);
 
           const sam: SAM = {
-            entries: trimmedHeader,
+            entries: expectedEntries ? expectedEntries : trimmedHeader,
             goods: goodsNames,
             factors: factorNames,
             households: householdNames,
@@ -243,9 +246,9 @@ const FileUploader = ({
             });
           }
         } else {
-          const expectedEntries = [...goods, ...factors, ...households];
+          const expectedAll = expectedEntries ? expectedEntries : [...goods, ...factors, ...households];
 
-          const trimmedExpected = expectedEntries.map(n => n.trim());
+          const trimmedExpected = expectedAll.map(n => n.trim());
 
           const headerSet = new Set(trimmedHeader);
           const rowSet = new Set(trimmedRows);
@@ -275,13 +278,13 @@ const FileUploader = ({
             rowIndexMap[name] = idx;
           });
 
-          const reorderedData = expectedEntries.map(rowName => {
+          const reorderedData = expectedAll.map(rowName => {
             const originalRow = parsed!.data[rowIndexMap[rowName]];
-            return expectedEntries.map(colName => originalRow[colIndexMap[colName]]);
+            return expectedAll.map(colName => originalRow[colIndexMap[colName]]);
           });
 
           const sam: SAM = {
-            entries: expectedEntries,
+            entries: expectedAll,
             goods,
             factors,
             households,

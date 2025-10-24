@@ -1,0 +1,60 @@
+id: open_economy_static
+name: Open-Economy CGE (Static)
+version: 0.1.0
+description: Static open economy with government, LAB/CAP, flexible sectors and households
+tags: [open-economy, static, government, trade]
+
+dimensions:
+  minSectors: 1
+  maxSectors: 20
+  minHouseholds: 1
+  maxHouseholds: 20
+  factors: [LAB, CAP]
+
+samLayout:
+  order:
+    - SECTORS*
+    - LAB
+    - CAP
+    - HOUSEHOLDS*
+    - FIRMS
+    - DIRECT_TX
+    - INDIR_TX
+    - IMP_TX
+    - GOVMT
+    - ROW
+    - ACCUM
+
+inputs:
+  nSectors: { type: number, min: 1 }
+  nHouseholds: { type: number, min: 1 }
+  SIGP: { type: "number|number[]", per: sector, default: 2.0 }
+  SIGC: { type: "number|number[]", per: household, default: 1.5 }
+  SIGM: { type: "number|number[]", per: sector, default: 2.0 }
+  SIGX: { type: "number|number[]", per: sector, default: 2.0 }
+
+closures:
+  defaults: ["fix:ER", "fix:KTOT", "fix:LS[*]", "fix:G[*]", "fix:PWM[*]", "fix:PWEX[*]", "fix:SAV_F", "fix:TRROWH[*]", "fix:TRGH[*]"]
+  allowed: ["fix:ER", "fix:KTOT", "fix:LS[*]", "fix:G[*]", "fix:PWM[*]", "fix:PWEX[*]", "fix:SAV_F", "fix:TRROWH[*]", "fix:TRGH[*]"]
+
+shocks:
+  allowed: ["TM[i]", "TP[j]", "TC[i]", "TINV[i]", "TG[i]", "G[i]", "TRGH[h]", "PWM[i]", "PWEX[i]", "ER"]
+  semantics: multiplier
+
+solver:
+  engine: gamspy
+  nlp: CONOPT
+  iterLimit: 10000
+  timeLimit: 10000
+
+outputs:
+  prices: { per: sector }
+  production: { per: sector }
+  wage: { type: number }
+  householdIncomes: { per: household }
+  revenues: { fields: [directTaxes, indirectTaxes, tariffs, governmentSaving] }
+
+uiHints:
+  preferredCharts: [prices, production, householdIncomes]
+  numberFormat: "0.00"
+

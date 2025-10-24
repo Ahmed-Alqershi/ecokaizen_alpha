@@ -24,6 +24,30 @@ export const solveModel = async (
   sam?: SAM
 ): Promise<ModelResults> => {
   try {
+    // Route MN1 through the new workspace template endpoint
+    if (templateId === 'mn1') {
+      const payloadParams: any = { ...params };
+      // If auto-calibration is enabled or beta is a flat array, drop beta to avoid validation errors
+      const isFlatBeta = Array.isArray((payloadParams as any).beta) &&
+        ((payloadParams as any).beta.length === 0 || typeof (payloadParams as any).beta[0] === 'number');
+      if (payloadParams.autoCalibrate !== false || isFlatBeta) {
+        delete payloadParams.beta;
+      }
+      const response = await api.post(`/templates/workspace/${templateId}/run`, {
+        params: payloadParams,
+        sam,
+      });
+      return response.data;
+    }
+
+    if (templateId === 'open_economy_static') {
+      const response = await api.post(`/templates/workspace/${templateId}/run`, {
+        params,
+        sam,
+      });
+      return response.data;
+    }
+
     const response = await api.post('/solve-model', {
       templateId,
       params,
@@ -36,6 +60,30 @@ export const solveModel = async (
     }
     throw error;
   }
+};
+
+// Workspace Template Helpers (for future UI usage)
+export const listWorkspaceTemplates = async () => {
+  const response = await api.get('/templates/workspace');
+  return response.data as Array<{ id: string; name: string; version: string; description?: string }>;
+};
+
+export const getWorkspaceTemplateSchema = async (templateId: string) => {
+  const response = await api.get(`/templates/workspace/${templateId}/schema`);
+  return response.data as { descriptor: any; inputSchema: any; outputSchema: any };
+};
+
+export const getWorkspaceSamLayout = async (templateId: string, sectors: number, households: number) => {
+  const response = await api.post(`/templates/workspace/${templateId}/sam/layout`, { sectors, households });
+  if (!response.data || !Array.isArray(response.data.rows) || response.data.rows.length === 0) {
+    // Fallback: construct client-side entries to avoid blocking
+    const goods = Array.from({ length: sectors }, (_, i) => `IND${i+1}`);
+    const factors = ['LAB','CAP'];
+    const householdsList = Array.from({ length: households }, (_, i) => `HH${i+1}`);
+    const tail = ['FIRMS','DIRECT_TX','INDIR_TX','IMP_TX','GOVMT','ROW','ACCUM'];
+    return { rows: [...goods, ...factors, ...householdsList, ...tail], cols: [...goods, ...factors, ...householdsList, ...tail], blocks: [] };
+  }
+  return response.data as { rows: string[]; cols: string[]; blocks: any[] };
 };
 
 export const compareScenarios = async (

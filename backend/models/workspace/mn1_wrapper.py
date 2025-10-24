@@ -49,11 +49,17 @@ def solve_mn1(params: Dict[str, Any], sam: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("SAM must include goods, factors and households")
 
     # Extract parameters with defaults
+    auto_calibrate: bool = params.get("autoCalibrate", True)
+
     alpha_params = params.get("alpha", _default_list(len(sectors), 1.0 / len(sectors)))
-    tech_params = params.get("b", _default_list(len(sectors), 1.0))
+    # Support both legacy 'b' and explicit 'A' for technology parameters
+    tech_params = params.get("A", params.get("b", _default_list(len(sectors), 1.0)))
+    # Optional Beta (utility shares) as households x sectors
+    beta_params = params.get("beta")
+
     prices = params.get("prices", _default_list(len(sectors), 1.0))
     wage = params.get("wage", 1.0)
-    
+
     # Extract closure rules and shocks
     closure_rules = params.get("closureRules", [])
     shocks = params.get("shocks", [])
@@ -80,11 +86,12 @@ def solve_mn1(params: Dict[str, Any], sam: Dict[str, Any]) -> Dict[str, Any]:
             sam_data=sam_data,
             prices=prices,
             wage=wage,
-            alpha_params=alpha_params,
-            tech_params=tech_params,
+            alpha_params=alpha_params if not auto_calibrate else None,
+            beta_params=beta_params if not auto_calibrate else None,
+            tech_params=tech_params if not auto_calibrate else None,
             closure_rules=closure_rules,
             shocks=shocks,
-            auto_calibrate=True  # Default to auto-calibration
+            auto_calibrate=auto_calibrate
         )
         
         return results

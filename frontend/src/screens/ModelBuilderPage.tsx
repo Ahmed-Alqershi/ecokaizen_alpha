@@ -1,3 +1,5 @@
+console.log('🚀 MODELBUILDER FILE LOADED - VERSION 2');
+
 import { useState, useEffect, useCallback, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import TemplateCard from '../components/TemplateCard';
@@ -17,7 +19,7 @@ import {
   exportSamToCsv,
   exportSamToExcel,
 } from '../utils/samUtils';
-import { solveModel, compareScenarios, saveRun } from '../utils/api';
+import { solveModel, compareScenarios, saveRun, getWorkspaceSamLayout } from '../utils/api';
 import { AuthContext } from '../contexts/AuthContext';
 
 const ModelBuilderPage = () => {
@@ -29,6 +31,7 @@ const ModelBuilderPage = () => {
   
   // Template selection state
   const [selectedTemplate, setSelectedTemplate] = useState<ModelTemplate | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   
   // Customization options
   const [useCustomModel, setUseCustomModel] = useState<boolean | null>(null);
@@ -70,10 +73,12 @@ const ModelBuilderPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [detailedError, setDetailedError] = useState<string | null>(null);
 
-  // Load run data when navigating from history
+  // Load run data when navigating from history or with explicit template selection
   useEffect(() => {
+    console.log('[ModelBuilder] Component mounted, location.state:', location.state);
     const state: any = location.state;
     if (state && state.run) {
+      console.log('[ModelBuilder] Loading from run data');
       const run = state.run;
       const tpl = templates.find(t => t.id === run.template_id) || null;
       if (tpl) setSelectedTemplate(tpl);
@@ -90,8 +95,86 @@ const ModelBuilderPage = () => {
         setModelResults(run.results);
         setCurrentStep(5);
       }
+    } else if (state && state.templateId) {
+      // Direct navigation after creating a project with a chosen workspace template
+      console.log('[ModelBuilder] Setting templateId from state:', state.templateId);
+      setSelectedTemplateId(state.templateId);
+      const tpl = { id: state.templateId, name: state.templateId, shortDescription: '', type: state.templateId, sectors: [], factors: [], households: [], details: { hasGovernment: false, hasTrade: false, hasInvestment: false, description: '' } } as any;
+      setSelectedTemplate(tpl);
+    } else {
+      console.log('[ModelBuilder] No template in state, checking localStorage for project template');
+      // Try to load template from localStorage if this is an existing project
+      const projectName = decodeURIComponent(location.pathname.split('/')[2]);
+      const savedState = localStorage.getItem(`model-studio-${projectName}`);
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          if (parsed.templateId) {
+            console.log('[ModelBuilder] Found templateId in localStorage:', parsed.templateId);
+            setSelectedTemplateId(parsed.templateId);
+            const tpl = { id: parsed.templateId, name: parsed.templateId, shortDescription: '', type: parsed.templateId, sectors: [], factors: [], households: [], details: { hasGovernment: false, hasTrade: false, hasInvestment: false, description: '' } } as any;
+            setSelectedTemplate(tpl);
+          }
+        } catch (err) {
+          console.error('[ModelBuilder] Failed to parse localStorage:', err);
+        }
+      }
     }
-  }, [location.state]);
+  }, [location.state, location.pathname]);
+
+  // When selectedTemplateId changes, fetch the layout and configure the SAM immediately
+  // This also reacts to dimension changes (sectorCount, householdCount)
+  useEffect(() => {
+    console.log('[ModelBuilder] Template useEffect triggered, selectedTemplateId:', selectedTemplateId, 'sectors:', sectorCount, 'households:', householdCount);
+    if (!selectedTemplateId) {
+      console.log('[ModelBuilder] No selectedTemplateId, skipping SAM configuration');
+      return;
+    }
+    
+    const configureTemplateSpecificSam = async () => {
+      if (selectedTemplateId === 'mn1' || selectedTemplateId === 'open_economy_static') {
+        console.log('[ModelBuilder] Configuring SAM for workspace template:', selectedTemplateId);
+        try {
+          const layout = await getWorkspaceSamLayout(selectedTemplateId, sectorCount, householdCount);
+          const goods = Array.from({ length: sectorCount }, (_, i) => `IND${i+1}`);
+          const factors = selectedTemplateId === 'open_economy_static' ? ['LAB','CAP'] : Array.from({ length: factorCount }, (_, i) => `FACTOR${i+1}`);
+          const households = Array.from({ length: householdCount }, (_, i) => (selectedTemplateId === 'mn1' ? `CONS${i+1}` : `HH${i+1}`));
+          const tail = selectedTemplateId === 'open_economy_static' ? ['FIRMS','DIRECT_TX','INDIR_TX','IMP_TX','GOVMT','ROW','ACCUM'] : [];
+          const entries = (layout && Array.isArray(layout.rows) && layout.rows.length > 0)
+            ? layout.rows
+            : [...goods, ...factors, ...households, ...tail];
+          
+          // Update the names based on what we actually have
+          setSectorNames(goods);
+          if (selectedTemplateId === 'open_economy_static') {
+            setFactorNames(['LAB', 'CAP']);
+            setFactorCount(2);
+          } else {
+            setFactorNames(factors);
+          }
+          setHouseholdNames(households);
+          
+          const n = entries.length;
+          const data = Array.from({ length: n }, () => Array.from({ length: n }, () => 0));
+          setSamData({ entries, goods, factors, households, data });
+          setIsCustomSam(true);
+          
+          console.log(`[ModelBuilder] Configured SAM for template ${selectedTemplateId}:`, {
+            entries: entries.length,
+            goods: goods.length,
+            factors: factors.length,
+            households: households.length,
+            tail: tail.length,
+            entryList: entries
+          });
+        } catch (err) {
+          console.error('[ModelBuilder] Failed to fetch workspace layout:', err);
+        }
+      }
+    };
+    
+    configureTemplateSpecificSam();
+  }, [selectedTemplateId, sectorCount, householdCount]);
   
   // Reset when template changes
   useEffect(() => {
@@ -119,6 +202,30 @@ const ModelBuilderPage = () => {
           indirectTax: [],
           incomeTax: []
         });
+      } else if (selectedTemplate.id === 'mn1') {
+        // MN1 defaults using new workspace template
+        setSectorCount(2);
+        setFactorCount(2);
+        setHouseholdCount(1);
+        setSectorNames(['IND1', 'IND2']);
+        setFactorNames(['LAB', 'CAP']);
+        setHouseholdNames(['CONS1']);
+        setModelParameters({
+          alpha: [0.5, 0.5],
+          b: [1.0, 1.0]
+        });
+      } else if (selectedTemplate.id === 'open_economy_static') {
+        // Open economy defaults
+        setSectorCount(2);
+        setFactorCount(2);
+        setHouseholdCount(2);
+        setSectorNames(['IND1', 'IND2']);
+        setFactorNames(['LAB', 'CAP']);
+        setHouseholdNames(['HH1', 'HH2']);
+        setModelParameters({
+          alpha: [0.5, 0.5],
+          b: [1.0, 1.0]
+        } as any);
       } else if (selectedTemplate.id === 'saudi-cge') {
         setSamData(generateSaudiSam());
         setModelParameters({
@@ -145,6 +252,11 @@ const ModelBuilderPage = () => {
   
   // Update sector names when count changes
   useEffect(() => {
+    // Skip this if we have a workspace template selected - it will be handled by the template-specific logic
+    if (selectedTemplateId === 'mn1' || selectedTemplateId === 'open_economy_static') {
+      return;
+    }
+    
     if (!useCustomNames) {
       setSectorNames(Array.from({ length: sectorCount }, (_, i) => `SECTOR${i+1}`));
     } else if (sectorNames.length !== sectorCount) {
@@ -160,10 +272,15 @@ const ModelBuilderPage = () => {
         setSectorNames(sectorNames.slice(0, sectorCount));
       }
     }
-  }, [sectorCount, useCustomNames]);
+  }, [sectorCount, useCustomNames, selectedTemplateId]);
 
   // Update factor names when count changes
   useEffect(() => {
+    // Skip this if we have a workspace template selected - it will be handled by the template-specific logic
+    if (selectedTemplateId === 'mn1' || selectedTemplateId === 'open_economy_static') {
+      return;
+    }
+    
     if (!useCustomNames) {
       setFactorNames(Array.from({ length: factorCount }, (_, i) => `FACTOR${i+1}`));
     } else if (factorNames.length !== factorCount) {
@@ -179,10 +296,15 @@ const ModelBuilderPage = () => {
         setFactorNames(factorNames.slice(0, factorCount));
       }
     }
-  }, [factorCount, useCustomNames]);
+  }, [factorCount, useCustomNames, selectedTemplateId]);
 
   // Update household names when count changes
   useEffect(() => {
+    // Skip this if we have a workspace template selected - it will be handled by the template-specific logic
+    if (selectedTemplateId === 'mn1' || selectedTemplateId === 'open_economy_static') {
+      return;
+    }
+    
     if (!useCustomNames) {
       setHouseholdNames(Array.from({ length: householdCount }, (_, i) => `HH${i+1}`));
     } else if (householdNames.length !== householdCount) {
@@ -198,28 +320,45 @@ const ModelBuilderPage = () => {
         setHouseholdNames(householdNames.slice(0, householdCount));
       }
     }
-  }, [householdCount, useCustomNames]);
+  }, [householdCount, useCustomNames, selectedTemplateId]);
 
   // Update the SAM template when dimensions change
   useEffect(() => {
 
     if (currentStep === 3 && useCustomModel && !samConfigured) {
 
-      // Generate an empty SAM template with the current dimensions
-      const emptySam = generateEmptySam(
-        sectorCount,
-        factorCount,
-        householdCount,
-        useCustomNames ? sectorNames : undefined,
-        useCustomNames ? factorNames : undefined,
-        useCustomNames ? householdNames : undefined
-      );
-
-      
-
-      // Set the SAM data with the empty template
-      setSamData(emptySam);
-      setIsCustomSam(true);
+      const build = async () => {
+        if (selectedTemplate && (selectedTemplate.id === 'mn1' || selectedTemplate.id === 'open_economy_static')) {
+          // Use workspace layout and our chosen names
+          try {
+            const layout = await getWorkspaceSamLayout(selectedTemplate.id, sectorCount, householdCount);
+            const goods = useCustomNames ? sectorNames : Array.from({ length: sectorCount }, (_, i) => `IND${i+1}`);
+            const factors = selectedTemplate.id === 'open_economy_static' ? ['LAB','CAP'] : (useCustomNames ? factorNames : Array.from({ length: factorCount }, (_, i) => `FACTOR${i+1}`));
+            const households = useCustomNames ? householdNames : Array.from({ length: householdCount }, (_, i) => (selectedTemplate.id === 'mn1' ? `CONS${i+1}` : `HH${i+1}`));
+            const tail = selectedTemplate.id === 'open_economy_static' ? ['FIRMS','DIRECT_TX','INDIR_TX','IMP_TX','GOVMT','ROW','ACCUM'] : [];
+            const entries = (layout && Array.isArray(layout.rows) && layout.rows.length > 0)
+              ? layout.rows
+              : [...goods, ...factors, ...households, ...tail];
+            const n = entries.length;
+            const data = Array.from({ length: n }, () => Array.from({ length: n }, () => 0));
+            setSamData({ entries, goods, factors, households, data });
+            setIsCustomSam(true);
+          } catch (_) {}
+        } else {
+          // Generate an empty SAM template with the current dimensions
+          const emptySam = generateEmptySam(
+            sectorCount,
+            factorCount,
+            householdCount,
+            useCustomNames ? sectorNames : undefined,
+            useCustomNames ? factorNames : undefined,
+            useCustomNames ? householdNames : undefined
+          );
+          setSamData(emptySam);
+          setIsCustomSam(true);
+        }
+      };
+      void build();
 
       // Update model parameters to match the new dimensions
       setModelParameters({
@@ -243,7 +382,7 @@ const ModelBuilderPage = () => {
   
   // Handle customization choice
   const handleCustomizationChoice = (isCustom: boolean) => {
-    if (isCustom && selectedTemplate?.id !== 'simple-cge') {
+    if (isCustom && selectedTemplate && selectedTemplate.id !== 'simple-cge' && selectedTemplate.id !== 'mn1' && selectedTemplate.id !== 'open_economy_static') {
       setError(
         'Customization for this model is currently unavailable. This feature will be added soon.'
       );
@@ -300,17 +439,36 @@ const ModelBuilderPage = () => {
   };
 
   const handleConfigureSam = () => {
-    const emptySam = generateEmptySam(
-      sectorCount,
-      factorCount,
-      householdCount,
-      useCustomNames ? sectorNames : undefined,
-      useCustomNames ? factorNames : undefined,
-      useCustomNames ? householdNames : undefined
-    );
-
-    setSamData(emptySam);
-    setIsCustomSam(true);
+    const build = async () => {
+      if (selectedTemplate && (selectedTemplate.id === 'mn1' || selectedTemplate.id === 'open_economy_static')) {
+        try {
+          const layout = await getWorkspaceSamLayout(selectedTemplate.id, sectorCount, householdCount);
+          const goods = (useCustomNames ? sectorNames : Array.from({ length: sectorCount }, (_, i) => `IND${i+1}`));
+          const factors = selectedTemplate.id === 'open_economy_static' ? ['LAB','CAP'] : (useCustomNames ? factorNames : Array.from({ length: factorCount }, (_, i) => `FACTOR${i+1}`));
+          const households = (useCustomNames ? householdNames : Array.from({ length: householdCount }, (_, i) => (selectedTemplate.id === 'mn1' ? `CONS${i+1}` : `HH${i+1}`)));
+          const tail = selectedTemplate.id === 'open_economy_static' ? ['FIRMS','DIRECT_TX','INDIR_TX','IMP_TX','GOVMT','ROW','ACCUM'] : [];
+          const entries = (layout && Array.isArray(layout.rows) && layout.rows.length > 0)
+            ? layout.rows
+            : [...goods, ...factors, ...households, ...tail];
+          const n = entries.length;
+          const data = Array.from({ length: n }, () => Array.from({ length: n }, () => 0));
+          setSamData({ entries, goods, factors, households, data });
+          setIsCustomSam(true);
+        } catch (_) {}
+      } else {
+        const emptySam = generateEmptySam(
+          sectorCount,
+          factorCount,
+          householdCount,
+          useCustomNames ? sectorNames : undefined,
+          useCustomNames ? factorNames : undefined,
+          useCustomNames ? householdNames : undefined
+        );
+        setSamData(emptySam);
+        setIsCustomSam(true);
+      }
+    };
+    void build();
     setSamConfigured(true);
   };
 
@@ -350,6 +508,26 @@ const ModelBuilderPage = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
+  // Force template-aware SAM grid for open_economy_static regardless of step/state
+  useEffect(() => {
+    if (selectedTemplate?.id === 'open_economy_static') {
+      const m = sectorCount;
+      const n = householdCount;
+      const goods = useCustomNames ? sectorNames : Array.from({ length: m }, (_, i) => `IND${i+1}`);
+      const factors = ['LAB', 'CAP'];
+      const householdsArr = useCustomNames ? householdNames : Array.from({ length: n }, (_, i) => `HH${i+1}`);
+      const tail = ['FIRMS','DIRECT_TX','INDIR_TX','IMP_TX','GOVMT','ROW','ACCUM'];
+      const entries = [...goods, ...factors, ...householdsArr, ...tail];
+      const same = samData && Array.isArray(samData.entries) && samData.entries.length === entries.length && samData.entries.every((e, i) => e === entries[i]);
+      if (!same) {
+        const size = entries.length;
+        const data = Array.from({ length: size }, (_, r) => Array.from({ length: size }, (_, c) => (samData.data?.[r]?.[c] ?? 0)));
+        setSamData({ entries, goods, factors, households: householdsArr, data });
+        setIsCustomSam(true);
+      }
+    }
+  }, [selectedTemplate?.id, sectorCount, householdCount, sectorNames, householdNames, useCustomNames]);
 
   // Download the current SAM as an Excel file
   const handleDownloadExcel = async () => {
@@ -391,6 +569,20 @@ const ModelBuilderPage = () => {
         setIsLoading(false);
         return;
       }
+
+      // Template-specific SAM order validation
+      if (selectedTemplate?.id === 'open_economy_static') {
+        try {
+          const expected = await getWorkspaceSamLayout('open_economy_static', samData.goods.length, samData.households.length);
+          const expectedEntries = expected.rows;
+          const mismatch = expectedEntries.length !== samData.entries.length || expectedEntries.some((e, i) => e !== samData.entries[i]);
+          if (mismatch) {
+            setError('SAM entries are not in the required order for this template. Please reconfigure the SAM.');
+            setIsLoading(false);
+            return;
+          }
+        } catch (_) {}
+      }
       
       // Call the API to solve the model
       const templateId = selectedTemplate?.id || 'simple-cge';
@@ -400,7 +592,7 @@ const ModelBuilderPage = () => {
         setModelParameters({ ...modelParameters, ...results.params });
       }
       setModelResults(results);
-      await saveRun(username, templateId, modelParameters, isCustomSam ? samData : undefined, results);
+      await saveRun(username || undefined, templateId, modelParameters, isCustomSam ? samData : undefined, results);
       setCurrentStep(4);
     } catch (err) {
       
@@ -457,7 +649,7 @@ const ModelBuilderPage = () => {
       
       setComparisonResults(results);
       await saveRun(
-        username,
+        username || undefined,
         templateId,
         { baseline: modelParameters, scenario: scenarioParameters },
         isCustomSam ? samData : undefined,
@@ -804,6 +996,26 @@ const ModelBuilderPage = () => {
               </div>
             )}
 
+            {/* Debug banner to show expected SAM structure - ALWAYS VISIBLE for workspace templates */}
+            {(selectedTemplateId === 'mn1' || selectedTemplateId === 'open_economy_static') && samData.entries && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 mt-6">
+                <h4 className="text-sm font-semibold text-blue-900 mb-2">🔍 Debug: Expected SAM Structure</h4>
+                <div className="text-xs text-blue-800 space-y-1">
+                  <div><strong>Template:</strong> {selectedTemplateId}</div>
+                  <div><strong>Expected Dimension:</strong> {samData.entries.length} × {samData.entries.length}</div>
+                  <div><strong>Expected Entries:</strong> {samData.entries.join(', ')}</div>
+                  <div className="mt-2 pt-2 border-t border-blue-200">
+                    <div><strong>Goods:</strong> {samData.goods.length} ({samData.goods.join(', ')})</div>
+                    <div><strong>Factors:</strong> {samData.factors.length} ({samData.factors.join(', ')})</div>
+                    <div><strong>Households:</strong> {samData.households.length} ({samData.households.join(', ')})</div>
+                    {selectedTemplateId === 'open_economy_static' && (
+                      <div><strong>Fixed Tail:</strong> 7 (FIRMS, DIRECT_TX, INDIR_TX, IMP_TX, GOVMT, ROW, ACCUM)</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!samConfigured && (
               <div className="mt-6">
                 <button
@@ -818,6 +1030,7 @@ const ModelBuilderPage = () => {
 
           {samConfigured && (
             <>
+
               <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
                 <h3 className="text-xl font-medium mb-4">Social Accounting Matrix (SAM)</h3>
                 <p className="mb-4 text-darkgray/70">
@@ -831,6 +1044,7 @@ const ModelBuilderPage = () => {
                     goods={sectorNames}
                     factors={factorNames}
                     households={householdNames}
+                    expectedEntries={selectedTemplate?.id === 'open_economy_static' || selectedTemplate?.id === 'mn1' ? samData.entries : undefined}
                     autoPopulateNames={populateNamesFromFile}
                     onNamesLoaded={handleNamesLoaded}
                   />

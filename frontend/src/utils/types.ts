@@ -51,6 +51,11 @@ export interface ModelParameters {
   closureRules?: ClosureRule[];
   shocks?: Shock[];
   calibration?: 'auto' | 'manual';
+  // Open economy elasticities
+  SIGP?: number[]; // by sector
+  SIGC?: number[]; // by household
+  SIGM?: number[]; // by sector
+  SIGX?: number[]; // by sector
 }
 
 // Model Results

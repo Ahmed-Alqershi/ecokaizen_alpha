@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { createProject, listProjects, deleteProject, updateProjectStatus } from '../utils/api';
+import { createProject, listProjects, deleteProject, updateProjectStatus, listWorkspaceTemplates } from '../utils/api';
 import { Project } from '../utils/types';
 import TemplateDropdown from '../components/TemplateDropdown';
 import {
@@ -24,21 +24,22 @@ const ProjectsPage = () => {
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name' | 'lastSaved'>('lastSaved');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'open' | 'archived'>('open');
+  const [workspaceTemplates, setWorkspaceTemplates] = useState<{ id: string; name: string; description?: string }[]>([]);
 
-  const templates = [
-    {
-      id: 'A',
-      name: 'Standard m×n×1 Template',
-      description:
-        'A simplified CGE model template that supports m sectors, n household groups, two production factors (Labor and Capital), and no government or external sector.'
-    },
-    {
-      id: 'B',
-      name: 'Extended Economy Template',
-      description:
-        'Includes government, trade flows, and additional production factors for richer policy simulations.'
-    }
-  ];
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const tpl = await listWorkspaceTemplates();
+        setWorkspaceTemplates(tpl);
+      } catch {
+        setWorkspaceTemplates([
+          { id: 'mn1', name: 'MN1 CGE Model', description: 'Simple static CGE with labor and capital, flexible sectors and households.' },
+          { id: 'open_economy_static', name: 'Open-Economy CGE (Static)', description: 'Static open economy with government, trade (imports/exports), and LAB/CAP factors.' }
+        ]);
+      }
+    };
+    loadTemplates();
+  }, []);
 
   const loadProjects = async () => {
     if (!username) return;
@@ -100,15 +101,13 @@ const ProjectsPage = () => {
     setNewTemplate('');
     setNameError('');
     setTemplateError('');
-    if (project && newTemplate === 'A') {
+    if (project) {
       // Ensure any stale local saved state for this project name is cleared
       try {
         localStorage.removeItem(`model-studio-${project.name}`);
       } catch {}
       const encodedName = encodeURIComponent(project.name);
-      navigate(`/projects/${encodedName}/model_studio`);
-    } else {
-      loadProjects();
+      navigate(`/projects/${encodedName}/model_studio`, { state: { templateId: newTemplate } });
     }
   };
 
@@ -213,7 +212,10 @@ const ProjectsPage = () => {
     localStorage.setItem('workspace-projects', JSON.stringify(existingProjects));
     
     const encodedName = encodeURIComponent(project.name);
-    navigate(`/projects/${encodedName}/model_studio`);
+    // Pass the template ID when opening an existing project
+    navigate(`/projects/${encodedName}/model_studio`, { 
+      state: project.template ? { templateId: project.template } : undefined 
+    });
   };
 
   return (
@@ -301,9 +303,7 @@ const ProjectsPage = () => {
                       <span className="font-bold">Description:</span> {p.description || ''}
                     </p>
                     <p className="text-sm">
-                      <span className="font-bold">Template:</span> {
-                        templates.find((t) => t.id === p.template)?.name || p.template
-                      }
+                      <span className="font-bold">Template:</span> {workspaceTemplates.find((t) => t.id === p.template)?.name || p.template}
                     </p>
                   </div>
                   <div className="flex items-start space-x-3">
@@ -387,7 +387,7 @@ const ProjectsPage = () => {
               <div>
                 <label className="block mb-1 text-sm font-semibold">Template</label>
                 <TemplateDropdown
-                  templates={templates}
+                  templates={workspaceTemplates}
                   value={newTemplate}
                   onChange={(val) => {
                     setNewTemplate(val);

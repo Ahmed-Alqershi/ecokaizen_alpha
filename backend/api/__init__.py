@@ -7,5 +7,6 @@ auth_bp = Blueprint('auth', __name__)
 workspace_bp = Blueprint('workspace', __name__)
 demolab_bp = Blueprint('demolab', __name__)
 misc_bp = Blueprint('misc', __name__)
+templates_bp = Blueprint('templates', __name__)
 
 

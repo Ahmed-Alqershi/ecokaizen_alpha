@@ -11,9 +11,15 @@ interface ParameterInputsProps {
 const ParameterInputs = ({ initialParams, sam, templateId, onChange }: ParameterInputsProps) => {
   const [alphaValues, setAlphaValues] = useState<number[]>([]);
   const [bValues, setBValues] = useState<number[]>([]);
+  const [autoCalibrate, setAutoCalibrate] = useState<boolean>(true);
   const [tariffValues, setTariffValues] = useState<number[]>([]);
   const [indirectValues, setIndirectValues] = useState<number[]>([]);
   const [incomeValues, setIncomeValues] = useState<number[]>([]);
+  // Open economy arrays
+  const [sigp, setSigp] = useState<number[]>([]); // by sector
+  const [sigc, setSigc] = useState<number[]>([]); // by household
+  const [sigm, setSigm] = useState<number[]>([]); // by sector
+  const [sigx, setSigx] = useState<number[]>([]); // by sector
   
   // Initialize and react to SAM changes
   useEffect(() => {
@@ -39,6 +45,11 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
       );
       setBValues(defaultB);
 
+      // Calibration mode (MN1 only for now)
+      if (templateId === 'mn1') {
+        setAutoCalibrate((initialParams as any)?.autoCalibrate ?? true);
+      }
+
       if (templateId === 'korea-cge' || templateId === 'saudi-cge') {
         const defTariff = sam.goods.map((_, i) => initialParams?.tariff?.[i] ?? 0);
         const defIndirect = sam.goods.map((_, i) => initialParams?.indirectTax?.[i] ?? 0);
@@ -46,6 +57,13 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
         setIndirectValues(defIndirect);
         const defIncome = sam.households.map((_, i) => initialParams?.incomeTax?.[i] ?? 0);
         setIncomeValues(defIncome);
+      }
+
+      if (templateId === 'open_economy_static') {
+        setSigp(sam.goods.map((_, i) => (initialParams as any)?.SIGP?.[i] ?? 2));
+        setSigm(sam.goods.map((_, i) => (initialParams as any)?.SIGM?.[i] ?? 2));
+        setSigx(sam.goods.map((_, i) => (initialParams as any)?.SIGX?.[i] ?? 2));
+        setSigc(sam.households.map((_, i) => (initialParams as any)?.SIGC?.[i] ?? 1.5));
       }
 
       // initialized defaults
@@ -61,6 +79,15 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
         alpha: alphaValues,
         b: bValues
       };
+      if (templateId === 'open_economy_static') {
+        (params as any).SIGP = sigp;
+        (params as any).SIGC = sigc;
+        (params as any).SIGM = sigm;
+        (params as any).SIGX = sigx;
+      }
+      if (templateId === 'mn1') {
+        (params as any).autoCalibrate = autoCalibrate;
+      }
       if (templateId === 'korea-cge' || templateId === 'saudi-cge') {
         params.tariff = tariffValues;
         params.indirectTax = indirectValues;
@@ -68,7 +95,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
       }
       onChange(params);
     }
-  }, [alphaValues, bValues, tariffValues, indirectValues, incomeValues, templateId, onChange]);
+  }, [alphaValues, bValues, tariffValues, indirectValues, incomeValues, templateId, onChange, autoCalibrate, sigp, sigc, sigm, sigx]);
 
   const handleAlphaChange = (index: number, value: number) => {
     const newValues = [...alphaValues];
@@ -93,7 +120,23 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm">
 
-      {templateId !== 'korea-cge' && templateId !== 'saudi-cge' && (
+      {templateId === 'mn1' && (
+      <div className="mb-6">
+        <h4 className="text-md font-medium mb-2">Model Calibration</h4>
+        <div className="flex items-center gap-6">
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={autoCalibrate} onChange={() => setAutoCalibrate(true)} />
+            <span>Auto-calibrate</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={!autoCalibrate} onChange={() => setAutoCalibrate(false)} />
+            <span>Manual input</span>
+          </label>
+        </div>
+      </div>
+      )}
+
+      {templateId !== 'korea-cge' && templateId !== 'saudi-cge' && (!autoCalibrate || templateId !== 'mn1') && (
       <div className="mb-6">
         <h4 className="text-md font-medium mb-2">Utility Function Parameters (Alpha)</h4>
         <p className="text-sm text-darkgray/70 mb-4">
@@ -125,7 +168,7 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
       </div>
       )}
 
-      {templateId !== 'korea-cge' && templateId !== 'saudi-cge' && (
+      {templateId !== 'korea-cge' && templateId !== 'saudi-cge' && (!autoCalibrate || templateId !== 'mn1') && (
       <div>
         <h4 className="text-md font-medium mb-2">Production Function Parameters (B)</h4>
         <p className="text-sm text-darkgray/70 mb-4">
@@ -150,6 +193,59 @@ const ParameterInputs = ({ initialParams, sam, templateId, onChange }: Parameter
           ))}
         </div>
       </div>
+      )}
+
+      {templateId === 'open_economy_static' && (
+        <div className="mt-6 space-y-6">
+          <div>
+            <h4 className="text-md font-medium mb-2">Elasticity of substitution in production (SIGP)</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {sam.goods.map((good, idx) => (
+                <div key={`sigp-${idx}`} className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">{good}</label>
+                  <input type="number" step="0.1" className="input" value={sigp[idx] ?? 2}
+                    onChange={(e)=>{ const v=[...sigp]; v[idx]=parseFloat(e.target.value)||0; setSigp(v); }} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h4 className="text-md font-medium mb-2">Elasticity in household utility (SIGC)</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {sam.households.map((hh, idx) => (
+                <div key={`sigc-${idx}`} className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">{hh}</label>
+                  <input type="number" step="0.1" className="input" value={sigc[idx] ?? 1.5}
+                    onChange={(e)=>{ const v=[...sigc]; v[idx]=parseFloat(e.target.value)||0; setSigc(v); }} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h4 className="text-md font-medium mb-2">Armington elasticity (SIGM)</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {sam.goods.map((good, idx) => (
+                <div key={`sigm-${idx}`} className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">{good}</label>
+                  <input type="number" step="0.1" className="input" value={sigm[idx] ?? 2}
+                    onChange={(e)=>{ const v=[...sigm]; v[idx]=parseFloat(e.target.value)||0; setSigm(v); }} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h4 className="text-md font-medium mb-2">CET elasticity of transformation (SIGX)</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {sam.goods.map((good, idx) => (
+                <div key={`sigx-${idx}`} className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">{good}</label>
+                  <input type="number" step="0.1" className="input" value={sigx[idx] ?? 2}
+                    onChange={(e)=>{ const v=[...sigx]; v[idx]=parseFloat(e.target.value)||0; setSigx(v); }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {(templateId === 'korea-cge' || templateId === 'saudi-cge') && (
